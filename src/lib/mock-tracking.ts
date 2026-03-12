@@ -8,13 +8,30 @@ import type { B2CTrip, B2BTrip, SheetImportRow } from '@/types/tracking'
 // --- Listas predefinidas ---
 
 export const MOCK_CARRIERS = [
-    'Andreani',
-    'OCA',
-    'Correo Argentino',
-    'Cruz del Sur',
-    'Via Cargo',
-    'Transporte Lara',
-    'Expreso Quilmes',
+    'Retira Meli',
+    'DPD next day',
+    'MELI FLEX MOOVA',
+    'Andreani logistica B2C',
+    'La sevillanita',
+    'Andesmar',
+    'Flota Propia',
+    'Envio Pack Pi',
+    'Andreani Service Canje',
+    'OCA B2C',
+    'Oro negro B2C',
+    'HOP',
+    'Webpack Nextday',
+    'Andreani Correo Interior',
+    'Del valle',
+    'MARKETPLACE',
+    'Envio Pack NS',
+    'Iflow B2C',
+    'ANDREANI PICK UP',
+    'Andreani logistica interior',
+    'Meli flex webpack',
+    'Andreani service',
+    'ANDREANI PEDIDOS ESPECIALES',
+    'ANDREANI MULTIBULTO B2C',
 ]
 
 export const MOCK_OPERATORS = [

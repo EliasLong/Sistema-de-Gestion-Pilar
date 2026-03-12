@@ -297,7 +297,7 @@ export function B2BTable({ trips, onUnsavedChange }: B2BTableProps) {
                     </div>
 
                     <div className="relative w-full overflow-auto rounded-lg border border-blue-500/20">
-                        <table className="w-full caption-bottom text-sm">
+                        <table className="w-full min-w-max caption-bottom text-sm">
                             <thead className="bg-blue-500/10">
                                 <tr className="border-b border-blue-500/20">
                                     <th className="h-10 px-3 text-left text-xs font-semibold text-blue-300 whitespace-nowrap">Fecha</th>
@@ -364,7 +364,7 @@ export function B2BTable({ trips, onUnsavedChange }: B2BTableProps) {
 
             {/* Main Table */}
             <div className="relative w-full overflow-auto rounded-lg border">
-                <table className="w-full caption-bottom text-sm">
+                <table className="w-full min-w-max caption-bottom text-sm">
                     <thead className="bg-muted/50">
                         <tr className="border-b">
                             <th className="h-11 px-3 text-left font-semibold text-muted-foreground whitespace-nowrap">Fecha</th>

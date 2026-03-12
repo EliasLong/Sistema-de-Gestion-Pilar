@@ -198,7 +198,7 @@ export function B2CTable({ trips, onUnsavedChange }: B2CTableProps) {
 
             {/* Table */}
             <div className="relative w-full overflow-auto rounded-lg border">
-                <table className="w-full caption-bottom text-sm">
+                <table className="w-full min-w-max caption-bottom text-sm">
                     <thead className="bg-muted/50">
                         <tr className="border-b">
                             <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">Fecha</th>

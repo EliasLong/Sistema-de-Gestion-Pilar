@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import type { B2BTrip, TripStatus, SheetImportRow } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, RefreshCw, FileSpreadsheet, Lock, ArrowUp } from 'lucide-react'
-import { MOCK_CARRIERS_B2B, MOCK_OPERATORS, MOCK_SHEET_IMPORTS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
+import { MOCK_CARRIERS_B2B, getOperatorsForContext, MOCK_SHEET_IMPORTS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
 
 // ============================================
 // Row Draft types
@@ -88,10 +88,11 @@ function isRowComplete(row: B2BRowDraft): boolean {
 
 interface B2BTableProps {
     trips: B2BTrip[]
+    warehouse: 'PL2' | 'PL3'
     onUnsavedChange?: (hasUnsaved: boolean) => void
 }
 
-export function B2BTable({ trips, onUnsavedChange }: B2BTableProps) {
+export function B2BTable({ trips, warehouse, onUnsavedChange }: B2BTableProps) {
     const [rows, setRows] = useState<B2BRowDraft[]>(() => trips.map(tripToRow))
     const [importedRows, setImportedRows] = useState<B2BRowDraft[]>([])
     const [isRefreshing, setIsRefreshing] = useState(false)
@@ -404,7 +405,7 @@ export function B2BTable({ trips, onUnsavedChange }: B2BTableProps) {
                                     <td className="p-2 text-center">{editable ? <input type="number" value={row.task_count} onChange={(e) => updateRow(row._localId, 'task_count', e.target.value)} min={0} className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block" /> : <span className="text-sm">{row.task_count}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.port} onChange={(e) => updateRow(row._localId, 'port', e.target.value)} placeholder="Puerto" className="w-[70px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.port}</span>}</td>
                                     <td className="p-2 text-center">{editable ? <input type="number" value={row.pallets} onChange={(e) => updateRow(row._localId, 'pallets', e.target.value.slice(0, 2))} min={0} max={99} className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block" /> : <span className="text-sm font-semibold">{row.pallets}</span>}</td>
-                                    <td className="p-2">{editable ? <OperatorMultiSelect selected={row.operators} onToggle={(op) => toggleOperator(row._localId, op, false)} /> : <div className="flex flex-wrap gap-1">{row.operators.map((op) => <span key={op} className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium">{op.split(' ')[0]}</span>)}</div>}</td>
+                                    <td className="p-2">{editable ? <OperatorMultiSelect selected={row.operators} warehouse={warehouse} onToggle={(op) => toggleOperator(row._localId, op, false)} /> : <div className="flex flex-wrap gap-1">{row.operators.map((op) => <span key={op} className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium">{op.split(' ')[0]}</span>)}</div>}</td>
                                     <td className="p-2 text-center">{editable ? <button onClick={() => updateRow(row._localId, 'documents_printed', !row.documents_printed)} className={`mx-auto flex h-7 w-7 items-center justify-center rounded-md border transition-colors ${row.documents_printed ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-transparent border-input text-muted-foreground hover:text-foreground'}`}>{row.documents_printed ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}</button> : row.documents_printed ? <Check className="h-4 w-4 text-emerald-400 mx-auto" /> : <X className="h-4 w-4 text-red-400 mx-auto" />}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.detail} onChange={(e) => updateRow(row._localId, 'detail', e.target.value)} placeholder="Detalle..." className="w-[130px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm truncate max-w-[130px] block" title={row.detail}>{row.detail || '—'}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.comments} onChange={(e) => updateRow(row._localId, 'comments', e.target.value)} placeholder="Comentarios..." className="w-[130px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm truncate max-w-[130px] block" title={row.comments}>{row.comments || '—'}</span>}</td>
@@ -443,8 +444,18 @@ function formatDate(dateStr: string): string {
     return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function OperatorMultiSelect({ selected, onToggle }: { selected: string[]; onToggle: (op: string) => void }) {
+function OperatorMultiSelect({ 
+    selected, 
+    warehouse,
+    onToggle 
+}: { 
+    selected: string[]; 
+    warehouse: string;
+    onToggle: (op: string) => void 
+}) {
     const [isOpen, setIsOpen] = useState(false)
+    const operators = getOperatorsForContext(warehouse)
+
     return (
         <div className="relative">
             <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full min-w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-left focus:outline-none focus:ring-1 focus:ring-ring">
@@ -454,7 +465,7 @@ function OperatorMultiSelect({ selected, onToggle }: { selected: string[]; onTog
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
                     <div className="absolute z-50 mt-1 w-56 rounded-md border bg-popover p-1 shadow-lg max-h-48 overflow-auto">
-                        {MOCK_OPERATORS.map((op) => (
+                        {operators.map((op) => (
                             <button key={op} type="button" onClick={() => onToggle(op)} className={`w-full flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-muted ${selected.includes(op) ? 'text-foreground' : 'text-muted-foreground'}`}>
                                 <span className={`flex h-4 w-4 items-center justify-center rounded-sm border text-xs ${selected.includes(op) ? 'bg-primary border-primary text-primary-foreground' : 'border-input'}`}>{selected.includes(op) && '✓'}</span>
                                 {op}

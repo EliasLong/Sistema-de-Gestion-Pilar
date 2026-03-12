@@ -126,10 +126,10 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips }: TrackingTabsProp
             {/* Content — ambas tablas siempre montadas para no perder estado */}
             <div>
                 <div className={activeTab === 'b2c' ? 'block' : 'hidden'}>
-                    <B2CTable trips={b2cTrips} onUnsavedChange={setHasUnsavedB2C} />
+                    <B2CTable trips={b2cTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2C} />
                 </div>
                 <div className={activeTab === 'b2b' ? 'block' : 'hidden'}>
-                    <B2BTable trips={b2bTrips} onUnsavedChange={setHasUnsavedB2B} />
+                    <B2BTable trips={b2bTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2B} />
                 </div>
             </div>
         </div>

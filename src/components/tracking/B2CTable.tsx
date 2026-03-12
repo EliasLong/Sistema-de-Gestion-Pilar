@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import type { B2CTrip, TripStatus } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, Lock } from 'lucide-react'
-import { MOCK_CARRIERS_B2C, MOCK_OPERATORS, MOCK_LABELERS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
+import { MOCK_CARRIERS_B2C, getOperatorsForContext, MOCK_LABELERS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
 
 export interface B2CRowDraft {
     _localId: string
@@ -84,10 +84,11 @@ function isRowComplete(row: B2CRowDraft): boolean {
 
 interface B2CTableProps {
     trips: B2CTrip[]
+    warehouse: 'PL2' | 'PL3'
     onUnsavedChange?: (hasUnsaved: boolean) => void
 }
 
-export function B2CTable({ trips, onUnsavedChange }: B2CTableProps) {
+export function B2CTable({ trips, warehouse, onUnsavedChange }: B2CTableProps) {
     const [rows, setRows] = useState<B2CRowDraft[]>(() => trips.map(tripToRow))
 
     const unsavedRows = rows.filter((r) => !r._saved)
@@ -293,6 +294,7 @@ export function B2CTable({ trips, onUnsavedChange }: B2CTableProps) {
                                         {editable ? (
                                             <OperatorMultiSelect
                                                 selected={row.operators}
+                                                warehouse={warehouse}
                                                 onToggle={(op) => toggleOperator(row._localId, op)}
                                             />
                                         ) : (
@@ -475,8 +477,17 @@ function formatDate(dateStr: string): string {
 
 // --- Multi-select de operarios ---
 
-function OperatorMultiSelect({ selected, onToggle }: { selected: string[]; onToggle: (op: string) => void }) {
+function OperatorMultiSelect({ 
+    selected, 
+    warehouse,
+    onToggle 
+}: { 
+    selected: string[]; 
+    warehouse: string;
+    onToggle: (op: string) => void 
+}) {
     const [isOpen, setIsOpen] = useState(false)
+    const operators = getOperatorsForContext(warehouse)
 
     return (
         <div className="relative">
@@ -495,7 +506,7 @@ function OperatorMultiSelect({ selected, onToggle }: { selected: string[]; onTog
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
                     <div className="absolute z-50 mt-1 w-56 rounded-md border bg-popover p-1 shadow-lg max-h-48 overflow-auto">
-                        {MOCK_OPERATORS.map((op) => (
+                        {operators.map((op) => (
                             <button
                                 key={op} type="button"
                                 onClick={() => onToggle(op)}

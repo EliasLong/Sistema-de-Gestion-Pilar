@@ -8,8 +8,8 @@ const createClient = () => {
       getUser: async () => ({ data: { user: { id: 'mock-user' } }, error: null })
     },
     from: (table: string) => ({
-      select: () => ({
-        range: () => ({ data: [], error: null, count: 0 })
+      select: (columns?: string) => ({
+        range: (from: number, to: number) => ({ data: [], error: null, count: 0 })
       }),
       insert: (data: any) => ({
         select: () => ({ single: () => ({ data: { ...data, id: 'mock-id' }, error: null }) })

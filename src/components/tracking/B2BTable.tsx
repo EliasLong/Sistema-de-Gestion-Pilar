@@ -412,7 +412,7 @@ export function B2BTable({ trips, onUnsavedChange }: B2BTableProps) {
                                     <td className="p-2">{editable ? <select value={row.status} onChange={(e) => updateRow(row._localId, 'status', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"><option value="">Seleccionar</option>{Object.entries(TRIP_STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-muted/50">{row.status ? TRIP_STATUS_LABELS[row.status as TripStatus] : '—'}</span>}</td>
                                     <td className="p-2">
                                         <div className="flex items-center justify-center gap-1">
-                                            {!editable && <Lock className="h-4 w-4 text-muted-foreground" title="Bloqueada — +48hs" />}
+                                             {!editable && <span title="Bloqueada — +48hs"><Lock className="h-4 w-4 text-muted-foreground" /></span>}
                                             {editable && !row._saved && complete && <button onClick={() => saveRow(row._localId)} className="rounded-md p-1.5 text-emerald-400 hover:bg-emerald-500/20 transition-colors" title="Guardar"><Save className="h-4 w-4" /></button>}
                                             {editable && <button onClick={() => removeRow(row._localId)} className="rounded-md p-1.5 text-red-400 hover:bg-red-500/20 transition-colors" title="Eliminar"><Trash2 className="h-4 w-4" /></button>}
                                         </div>

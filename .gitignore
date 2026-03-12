@@ -3,3 +3,5 @@ node_modules/
 .claude/mcp.json
 .mcp.json
 .claude.json
+
+.vercel

@@ -108,7 +108,7 @@ export function B2CTable({ trips, onUnsavedChange }: B2CTableProps) {
     )
 
     const addRow = useCallback(() => {
-        setRows((prev) => [...prev, createEmptyB2CRow()])
+        setRows((prev) => [createEmptyB2CRow(), ...prev])
         onUnsavedChange?.(true)
     }, [onUnsavedChange])
 

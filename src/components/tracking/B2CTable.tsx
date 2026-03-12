@@ -425,7 +425,7 @@ export function B2CTable({ trips, onUnsavedChange }: B2CTableProps) {
                                     <td className="p-2 align-middle">
                                         <div className="flex items-center justify-center gap-1">
                                             {!editable && (
-                                                <Lock className="h-4 w-4 text-muted-foreground" title="Bloqueada — pasaron más de 48hs" />
+                                                <span title="Bloqueada — pasaron más de 48hs"><Lock className="h-4 w-4 text-muted-foreground" /></span>
                                             )}
                                             {editable && !row._saved && complete && (
                                                 <button

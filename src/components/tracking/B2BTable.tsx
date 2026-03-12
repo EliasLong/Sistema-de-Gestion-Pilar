@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import type { B2BTrip, TripStatus, SheetImportRow } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, RefreshCw, FileSpreadsheet, Lock, ArrowUp } from 'lucide-react'
-import { MOCK_CARRIERS, MOCK_OPERATORS, MOCK_SHEET_IMPORTS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
+import { MOCK_CARRIERS_B2B, MOCK_OPERATORS, MOCK_SHEET_IMPORTS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
 
 // ============================================
 // Row Draft types
@@ -396,7 +396,7 @@ export function B2BTable({ trips, onUnsavedChange }: B2BTableProps) {
                             return (
                                 <tr key={row._localId} className={`border-b transition-colors hover:bg-muted/20 ${rowBorder} ${!editable ? 'opacity-75' : ''}`}>
                                     <td className="p-2">{editable ? <input type="date" value={row.date} onChange={(e) => updateRow(row._localId, 'date', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm px-2">{formatDate(row.date)}</span>}</td>
-                                    <td className="p-2">{editable ? <select value={row.carrier} onChange={(e) => updateRow(row._localId, 'carrier', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"><option value="">Seleccionar</option>{MOCK_CARRIERS.map((c) => <option key={c} value={c}>{c}</option>)}</select> : <span className="text-sm font-medium px-2">{row.carrier}</span>}</td>
+                                    <td className="p-2">{editable ? <select value={row.carrier} onChange={(e) => updateRow(row._localId, 'carrier', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"><option value="">Seleccionar</option>{MOCK_CARRIERS_B2B.map((c) => <option key={c} value={c}>{c}</option>)}</select> : <span className="text-sm font-medium px-2">{row.carrier}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.vehicle_plate} onChange={(e) => updateRow(row._localId, 'vehicle_plate', e.target.value.toUpperCase())} placeholder="AB 123 CD" className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.vehicle_plate}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.trip_number} onChange={(e) => updateRow(row._localId, 'trip_number', e.target.value)} placeholder="Nro" className="w-[80px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.trip_number}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.client} onChange={(e) => updateRow(row._localId, 'client', e.target.value)} placeholder="Nombre" className="w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-medium px-2">{row.client}</span>}</td>

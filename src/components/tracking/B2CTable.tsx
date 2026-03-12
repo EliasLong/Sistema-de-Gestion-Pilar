@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import type { B2CTrip, TripStatus } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, Lock } from 'lucide-react'
-import { MOCK_CARRIERS, MOCK_OPERATORS, MOCK_LABELERS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
+import { MOCK_CARRIERS_B2C, MOCK_OPERATORS, MOCK_LABELERS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
 
 export interface B2CRowDraft {
     _localId: string
@@ -260,7 +260,7 @@ export function B2CTable({ trips, onUnsavedChange }: B2CTableProps) {
                                                 className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                             >
                                                 <option value="">Seleccionar</option>
-                                                {MOCK_CARRIERS.map((c) => (
+                                                {MOCK_CARRIERS_B2C.map((c) => (
                                                     <option key={c} value={c}>{c}</option>
                                                 ))}
                                             </select>

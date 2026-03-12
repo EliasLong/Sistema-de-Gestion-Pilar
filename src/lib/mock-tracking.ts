@@ -5,9 +5,7 @@
 
 import type { B2CTrip, B2BTrip, SheetImportRow } from '@/types/tracking'
 
-// --- Listas predefinidas ---
-
-export const MOCK_CARRIERS = [
+export const MOCK_CARRIERS_B2C = [
     'Retira Meli',
     'DPD next day',
     'MELI FLEX MOOVA',
@@ -32,6 +30,16 @@ export const MOCK_CARRIERS = [
     'Andreani service',
     'ANDREANI PEDIDOS ESPECIALES',
     'ANDREANI MULTIBULTO B2C',
+]
+
+export const MOCK_CARRIERS_B2B = [
+    'Andreani',
+    'OCA',
+    'Correo Argentino',
+    'Cruz del Sur',
+    'Via Cargo',
+    'Transporte Lara',
+    'Expreso Quilmes',
 ]
 
 export const MOCK_OPERATORS = [

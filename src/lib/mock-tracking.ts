@@ -33,13 +33,28 @@ export const MOCK_CARRIERS_B2C = [
 ]
 
 export const MOCK_CARRIERS_B2B = [
-    'Andreani',
+    '26/02/26',
+    'BESSONE',
+    'CAMILA DUARTE',
+    'CST',
+    'ESETECE',
+    'FRATI',
+    'GRUPO LURO',
+    'LOG. INTEGRAL ROMANO',
+    'LOGITECK',
+    'LOGYT',
+    'MARRA',
+    'MC S.R.L',
+    'MEFF',
+    'NORTE',
     'OCA',
-    'Correo Argentino',
-    'Cruz del Sur',
-    'Via Cargo',
-    'Transporte Lara',
-    'Expreso Quilmes',
+    'PANGEA',
+    'PL2',
+    'RD',
+    'RETIRA CLIENTE',
+    'TABLADA TRUCK',
+    'TOLIZ',
+    'TRANSPORTE NORTE S.A'
 ]
 
 export const MOCK_OPERATORS = [

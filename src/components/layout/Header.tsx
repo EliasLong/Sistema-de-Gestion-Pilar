@@ -16,7 +16,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-background px-6">
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-6">
       <div className="flex items-center gap-4">
         <h1 className="text-xl font-semibold tracking-tight">{getPageTitle()}</h1>
       </div>

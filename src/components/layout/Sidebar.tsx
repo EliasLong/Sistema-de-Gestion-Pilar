@@ -16,10 +16,10 @@ export function Sidebar({ className, ...props }: SidebarProps) {
   const navItems = getNavigationForRole('admin')
 
   return (
-    <aside className={cn("flex flex-col w-64 bg-card", className)} {...props}>
-      <div className="flex h-16 items-center px-6 border-b">
-        <Link href="/dashboard" className="font-bold text-lg flex items-center gap-2">
-          OCASA
+    <aside className={cn("flex flex-col w-64 bg-white border-r border-slate-200", className)} {...props}>
+      <div className="flex h-16 items-center px-6 border-b border-slate-200">
+        <Link href="/dashboard" className="font-bold text-lg flex items-center gap-2 text-primary">
+          OCASA SGP
         </Link>
       </div>
 

@@ -355,7 +355,7 @@ export function B2CTable({ trips, onUnsavedChange }: B2CTableProps) {
                                             <select
                                                 value={row.status}
                                                 onChange={(e) => updateRow(row._localId, 'status', e.target.value)}
-                                                className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                                className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-black focus:outline-none focus:ring-1 focus:ring-ring"
                                             >
                                                 <option value="">Seleccionar</option>
                                                 {Object.entries(TRIP_STATUS_LABELS).map(([key, label]) => (

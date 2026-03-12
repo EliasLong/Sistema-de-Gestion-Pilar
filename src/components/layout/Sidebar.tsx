@@ -18,8 +18,8 @@ export function Sidebar({ className, ...props }: SidebarProps) {
   return (
     <aside className={cn("flex flex-col w-64 bg-white border-r border-slate-200", className)} {...props}>
       <div className="flex h-16 items-center px-6 border-b border-slate-200">
-        <Link href="/dashboard" className="font-bold text-lg flex items-center gap-2 text-primary">
-          OCASA SGP
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <img src="/logo-ocasa.png" alt="OCASA SGP" className="h-8 w-auto object-contain" />
         </Link>
       </div>
 

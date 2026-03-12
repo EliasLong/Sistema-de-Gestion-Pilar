@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l \"/c/Users/jcajaravilla/Desktop/Proyecto Tower Control/ocasa-warehouse-platform/src\"/**/*.ts*)",
+      "Bash(find \"/c/Users/jcajaravilla/Desktop/Proyecto Tower Control/ocasa-warehouse-platform/src\" -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec wc -l {} +)",
+      "Bash(python3 -c \":*)"
+    ]
+  }
+}

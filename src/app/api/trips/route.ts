@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error, count } = await supabase
       .from('trips')
-      .select('*')
+      .select()
       .range((page - 1) * limit, page * limit - 1)
 
     if (error) throw error

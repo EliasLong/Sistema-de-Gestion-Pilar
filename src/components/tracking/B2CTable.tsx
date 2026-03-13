@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import type { B2CTrip, TripStatus } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
-import { Check, X, Plus, Save, Trash2, Lock } from 'lucide-react'
+import { Check, X, Plus, Save, Trash2, Lock, Search } from 'lucide-react'
 import { MOCK_CARRIERS_B2C, getOperatorsForContext, MOCK_LABELERS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
 
 export interface B2CRowDraft {
@@ -487,39 +487,70 @@ function OperatorMultiSelect({
     onToggle: (op: string) => void 
 }) {
     const [isOpen, setIsOpen] = useState(false)
-    const operators = getOperatorsForContext(warehouse)
+    const [searchTerm, setSearchTerm] = useState('')
+    const allOperators = getOperatorsForContext(warehouse)
+    
+    const filteredOperators = allOperators.filter(op => 
+        op.toLowerCase().includes(searchTerm.toLowerCase())
+    )
 
     return (
         <div className="relative">
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full min-w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-left focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full min-w-[120px] rounded-md border border-input bg-background px-2 py-1.5 text-sm text-left focus:outline-none focus:ring-1 focus:ring-ring shadow-sm hover:bg-accent transition-colors"
             >
                 {selected.length === 0 ? (
-                    <span className="text-muted-foreground">Seleccionar</span>
+                    <span className="text-muted-foreground italic">Seleccionar operarios...</span>
                 ) : (
-                    <span className="truncate block">{selected.length} seleccionado(s)</span>
+                    <span className="truncate block font-medium">{selected.length} seleccionado(s)</span>
                 )}
             </button>
             {isOpen && (
                 <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-                    <div className="absolute z-50 mt-1 w-56 rounded-md border bg-popover p-1 shadow-lg max-h-48 overflow-auto">
-                        {operators.map((op) => (
-                            <button
-                                key={op} type="button"
-                                onClick={() => onToggle(op)}
-                                className={`w-full flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-muted ${selected.includes(op) ? 'text-foreground' : 'text-muted-foreground'
-                                    }`}
-                            >
-                                <span className={`flex h-4 w-4 items-center justify-center rounded-sm border text-xs ${selected.includes(op) ? 'bg-primary border-primary text-primary-foreground' : 'border-input'
-                                    }`}>
-                                    {selected.includes(op) && '✓'}
-                                </span>
-                                {op}
-                            </button>
-                        ))}
+                    <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); setSearchTerm(''); }} />
+                    <div className="absolute z-50 mt-1 w-64 rounded-md border bg-popover p-2 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+                        {/* Buscador */}
+                        <div className="relative mb-2">
+                            <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                            <input
+                                autoFocus
+                                type="text"
+                                placeholder="Buscar por nombre..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-md border border-input bg-transparent py-2 pl-7 pr-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                        </div>
+
+                        <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1 custom-scrollbar">
+                            {filteredOperators.length > 0 ? (
+                                filteredOperators.map((op) => (
+                                    <button
+                                        key={op} 
+                                        type="button"
+                                        onClick={() => onToggle(op)}
+                                        className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-all hover:bg-accent ${
+                                            selected.includes(op) ? 'bg-primary/5 text-primary font-medium' : 'text-foreground'
+                                        }`}
+                                    >
+                                        <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-all ${
+                                            selected.includes(op) 
+                                                ? 'bg-primary border-primary text-primary-foreground' 
+                                                : 'border-input bg-background'
+                                        }`}>
+                                            {selected.includes(op) && <Check className="h-3 w-3 stroke-[3]" />}
+                                        </div>
+                                        <span className="truncate">{op}</span>
+                                    </button>
+                                ))
+                            ) : (
+                                <div className="py-4 text-center text-xs text-muted-foreground italic">
+                                    No se encontraron operarios
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </>
             )}

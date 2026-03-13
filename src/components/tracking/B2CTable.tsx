@@ -155,9 +155,8 @@ export function B2CTable({ trips, warehouse, onUnsavedChange }: B2CTableProps) {
                 const next = prev.map((row) => {
                     if (row._localId !== localId) return row
                     const hasOp = row.operators.includes(operator)
-                    const newOps = hasOp
-                        ? row.operators.filter((o) => o !== operator)
-                        : [...row.operators, operator]
+                    // Selección única: si ya estaba, se quita; si no, reemplaza
+                    const newOps = hasOp ? [] : [operator]
                     return { ...row, operators: newOps, _saved: false }
                 })
                 onUnsavedChange?.(next.some((r) => !r._saved))
@@ -505,7 +504,7 @@ function OperatorMultiSelect({
                     {selected.length === 0 ? (
                         <span className="text-muted-foreground">Seleccionar...</span>
                     ) : (
-                        <span className="truncate">{selected.length} seleccionado(s)</span>
+                        <span className="truncate font-medium">{selected[0]}</span>
                     )}
                 </div>
                 <ChevronDown className="h-4 w-4 shrink-0 opacity-40 ml-1" />
@@ -533,7 +532,11 @@ function OperatorMultiSelect({
                                     <button
                                         key={op} 
                                         type="button"
-                                        onClick={() => onToggle(op)}
+                                        onClick={() => {
+                                            onToggle(op);
+                                            setIsOpen(false);
+                                            setSearchTerm('');
+                                        }}
                                         className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-all hover:bg-accent ${
                                             selected.includes(op) ? 'bg-primary/5 text-primary font-medium' : 'text-foreground'
                                         }`}

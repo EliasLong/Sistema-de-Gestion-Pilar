@@ -16,14 +16,14 @@ export function Sidebar({ className, ...props }: SidebarProps) {
   const navItems = getNavigationForRole('admin')
 
   return (
-    <aside className={cn("flex flex-col w-56 bg-white border-r border-slate-200", className)} {...props}>
-      <div className="flex h-16 items-center px-6 border-b border-slate-200">
+    <aside className={cn("flex flex-col w-48 bg-white border-r border-slate-200", className)} {...props}>
+      <div className="flex h-14 items-center px-4 border-b border-slate-200">
         <Link href="/dashboard" className="flex items-center gap-2">
           <img src="/logo-ocasa.png" alt="OCASA SGP" className="h-8 w-auto object-contain" />
         </Link>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-4 px-3">
+      <div className="flex-1 overflow-y-auto py-2 px-2">
         <div className="space-y-1">
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.href) && item.href !== '/dashboard' || pathname === item.href

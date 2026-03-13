@@ -16,7 +16,7 @@ export function Sidebar({ className, ...props }: SidebarProps) {
   const navItems = getNavigationForRole('admin')
 
   return (
-    <aside className={cn("flex flex-col w-64 bg-white border-r border-slate-200", className)} {...props}>
+    <aside className={cn("flex flex-col w-56 bg-white border-r border-slate-200", className)} {...props}>
       <div className="flex h-16 items-center px-6 border-b border-slate-200">
         <Link href="/dashboard" className="flex items-center gap-2">
           <img src="/logo-ocasa.png" alt="OCASA SGP" className="h-8 w-auto object-contain" />

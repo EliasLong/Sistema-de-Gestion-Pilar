@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import type { B2CTrip, TripStatus } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
-import { Check, X, Plus, Save, Trash2, Lock, Search } from 'lucide-react'
+import { Check, X, Plus, Save, Trash2, Lock, Search, ChevronDown } from 'lucide-react'
 import { MOCK_CARRIERS_B2C, getOperatorsForContext, MOCK_LABELERS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
 
 export interface B2CRowDraft {
@@ -499,13 +499,16 @@ function OperatorMultiSelect({
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full min-w-[120px] rounded-md border border-input bg-background px-2 py-1.5 text-sm text-left focus:outline-none focus:ring-1 focus:ring-ring shadow-sm hover:bg-accent transition-colors"
+                className="flex w-full min-w-[140px] items-center justify-between rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             >
-                {selected.length === 0 ? (
-                    <span className="text-muted-foreground italic">Seleccionar operarios...</span>
-                ) : (
-                    <span className="truncate block font-medium">{selected.length} seleccionado(s)</span>
-                )}
+                <div className="flex-1 text-left truncate">
+                    {selected.length === 0 ? (
+                        <span className="text-muted-foreground">Seleccionar...</span>
+                    ) : (
+                        <span className="truncate font-medium">{selected.length} seleccionado(s)</span>
+                    )}
+                </div>
+                <ChevronDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
             </button>
             {isOpen && (
                 <>

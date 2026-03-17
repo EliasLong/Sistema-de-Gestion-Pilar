@@ -197,7 +197,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange }: B2CTableProps) {
             </div>
 
             {/* Table */}
-            <div className="relative w-full overflow-auto rounded-lg border">
+            <div className="relative w-full overflow-visible rounded-lg border bg-white">
                 <table className="w-full min-w-max caption-bottom text-sm">
                     <thead className="bg-muted/50">
                         <tr className="border-b">
@@ -526,7 +526,7 @@ function OperatorMultiSelect({
                             />
                         </div>
 
-                        <div className="max-h-48 overflow-y-auto space-y-0.5 pr-1 custom-scrollbar">
+                        <div className="max-h-64 overflow-y-auto space-y-0.5 pr-1 custom-scrollbar">
                             {filteredOperators.length > 0 ? (
                                 filteredOperators.map((op) => (
                                     <button
@@ -537,18 +537,12 @@ function OperatorMultiSelect({
                                             setIsOpen(false);
                                             setSearchTerm('');
                                         }}
-                                        className={`w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-all hover:bg-accent ${
-                                            selected.includes(op) ? 'bg-primary/5 text-primary font-medium' : 'text-foreground'
+                                        className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm transition-all hover:bg-accent ${
+                                            selected.includes(op) ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground'
                                         }`}
                                     >
-                                        <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-all ${
-                                            selected.includes(op) 
-                                                ? 'bg-primary border-primary text-primary-foreground' 
-                                                : 'border-input bg-background'
-                                        }`}>
-                                            {selected.includes(op) && <Check className="h-3 w-3 stroke-[3]" />}
-                                        </div>
                                         <span className="truncate">{op}</span>
+                                        {selected.includes(op) && <Check className="h-4 w-4 shrink-0" />}
                                     </button>
                                 ))
                             ) : (

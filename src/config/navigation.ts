@@ -64,13 +64,13 @@ export const navigation: NavItem[] = [
   },
   {
     title: 'Configuración',
-    href: '/settings',
+    href: '/configuracion',
     icon: Settings,
     roles: ['manager', 'admin'],
   },
   {
     title: 'Usuarios',
-    href: '/settings/users',
+    href: '/configuracion/usuarios',
     icon: Users,
     roles: ['admin'],
   },

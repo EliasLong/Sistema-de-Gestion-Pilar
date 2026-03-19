@@ -59,6 +59,22 @@ export async function POST(request: NextRequest) {
         const supabase = createClient()
         const body = await request.json()
 
+        // Remove mocked data that breaks Postgres UUID validation
+        if (body.created_by === 'user-001' || !body.created_by) {
+            delete body.created_by
+        }
+        
+        // Remove tracking draft metadata
+        delete body._localId
+        delete body._saved
+        delete body._isNew
+
+        // Try getting actual authenticated user
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+            body.created_by = user.id
+        }
+
         // Insert into Supabase table `tracking_trips`
         const { data, error } = await supabase
             .from('tracking_trips')
@@ -85,6 +101,10 @@ export async function PUT(request: NextRequest) {
 
         if (!id) {
             return NextResponse.json({ error: 'Missing row ID' }, { status: 400 })
+        }
+
+        if (updates.created_by === 'user-001') {
+            delete updates.created_by
         }
 
         const { data, error } = await supabase

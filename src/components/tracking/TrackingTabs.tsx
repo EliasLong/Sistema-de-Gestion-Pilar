@@ -11,11 +11,14 @@ interface TrackingTabsProps {
     warehouse: Warehouse
     b2cTrips: B2CTrip[]
     b2bTrips: B2BTrip[]
+    onSave: (data: any, isNew: boolean) => Promise<any>
+    onSaveBatch: (data: any[], areNew: boolean) => Promise<any>
+    onRefresh: () => Promise<void>
 }
 
 type TabValue = 'b2c' | 'b2b'
 
-export function TrackingTabs({ warehouse, b2cTrips, b2bTrips }: TrackingTabsProps) {
+export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatch, onRefresh }: TrackingTabsProps) {
     const [activeTab, setActiveTab] = useState<TabValue>('b2c')
     const [hasUnsavedB2C, setHasUnsavedB2C] = useState(false)
     const [hasUnsavedB2B, setHasUnsavedB2B] = useState(false)
@@ -126,10 +129,10 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips }: TrackingTabsProp
             {/* Content — ambas tablas siempre montadas para no perder estado */}
             <div>
                 <div className={activeTab === 'b2c' ? 'block' : 'hidden'}>
-                    <B2CTable trips={b2cTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2C} />
+                    <B2CTable trips={b2cTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2C} onSave={onSave} onSaveBatch={onSaveBatch} onRefresh={onRefresh} />
                 </div>
                 <div className={activeTab === 'b2b' ? 'block' : 'hidden'}>
-                    <B2BTable trips={b2bTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2B} />
+                    <B2BTable trips={b2bTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2B} onSave={onSave} onSaveBatch={onSaveBatch} onRefresh={onRefresh} />
                 </div>
             </div>
         </div>

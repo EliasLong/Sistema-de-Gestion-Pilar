@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { B2CTrip, TripStatus } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, Lock, Search, ChevronDown } from 'lucide-react'
@@ -86,10 +86,22 @@ interface B2CTableProps {
     trips: B2CTrip[]
     warehouse: 'PL2' | 'PL3'
     onUnsavedChange?: (hasUnsaved: boolean) => void
+    onSave: (data: any, isNew: boolean) => Promise<any>
+    onSaveBatch: (data: any[], areNew: boolean) => Promise<any>
+    onRefresh: () => Promise<void>
 }
 
-export function B2CTable({ trips, warehouse, onUnsavedChange }: B2CTableProps) {
+export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatch, onRefresh }: B2CTableProps) {
     const [rows, setRows] = useState<B2CRowDraft[]>(() => trips.map(tripToRow))
+
+    useEffect(() => {
+        setRows(prev => {
+            const drafts = prev.filter(r => !r._saved)
+            const draftIds = drafts.map(d => d._localId)
+            const synced = trips.map(tripToRow).filter(s => !draftIds.includes(s._localId))
+            return [...drafts, ...synced]
+        })
+    }, [trips])
 
     const unsavedRows = rows.filter((r) => !r._saved)
     const hasUnsaved = unsavedRows.length > 0
@@ -125,29 +137,56 @@ export function B2CTable({ trips, warehouse, onUnsavedChange }: B2CTableProps) {
     )
 
     const saveRow = useCallback(
-        (localId: string) => {
+        async (localId: string) => {
+            const row = rows.find(r => r._localId === localId)
+            if (!row || !isRowComplete(row)) return
+
+            try {
+                // Remove local draft properties
+                const { _localId, _saved, _isNew, ...payload } = row as any
+                await onSave({ ...payload, trip_type: 'b2c', warehouse }, row._isNew)
+                
+                setRows((prev) => {
+                    const next = prev.map((r) => {
+                        if (r._localId !== localId) return r
+                        return { ...r, _saved: true, _isNew: false }
+                    })
+                    onUnsavedChange?.(next.some((r) => !r._saved))
+                    return next
+                })
+                await onRefresh()
+            } catch (error) {
+                console.error("Error saving row", error)
+                alert("Error guardando el viaje")
+            }
+        },
+        [rows, onSave, onRefresh, onUnsavedChange, warehouse]
+    )
+
+    const saveAll = useCallback(async () => {
+        const rowsToSave = rows.filter((row) => !row._saved && isRowComplete(row))
+        if (rowsToSave.length === 0) return
+
+        try {
+            await Promise.all(rowsToSave.map(row => {
+                const { _localId, _saved, _isNew, ...payload } = row as any
+                return onSave({ ...payload, trip_type: 'b2c', warehouse }, row._isNew)
+            }))
+            
             setRows((prev) => {
                 const next = prev.map((row) => {
-                    if (row._localId !== localId || !isRowComplete(row)) return row
+                    if (row._saved || !isRowComplete(row)) return row
                     return { ...row, _saved: true, _isNew: false }
                 })
                 onUnsavedChange?.(next.some((r) => !r._saved))
                 return next
             })
-        },
-        [onUnsavedChange]
-    )
-
-    const saveAll = useCallback(() => {
-        setRows((prev) => {
-            const next = prev.map((row) => {
-                if (row._saved || !isRowComplete(row)) return row
-                return { ...row, _saved: true, _isNew: false }
-            })
-            onUnsavedChange?.(next.some((r) => !r._saved))
-            return next
-        })
-    }, [onUnsavedChange])
+            await onRefresh()
+        } catch (error) {
+            console.error(error)
+            alert("Error guardando los viajes")
+        }
+    }, [rows, onSave, onRefresh, onUnsavedChange, warehouse])
 
     const toggleOperator = useCallback(
         (localId: string, operator: string) => {

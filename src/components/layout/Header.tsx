@@ -4,9 +4,11 @@ import { usePathname } from 'next/navigation'
 import { Bell, Search } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { useProfile } from '@/hooks/useProfile'
 
 export function Header() {
   const pathname = usePathname()
+  const { profile } = useProfile()
   
   const getPageTitle = () => {
     if (pathname === '/dashboard') return 'Dashboard'
@@ -39,8 +41,8 @@ export function Header() {
         <div className="h-6 w-px bg-border mx-1"></div>
 
         <Avatar className="h-8 w-8 cursor-pointer">
-           <AvatarImage src="" alt="User" />
-           <AvatarFallback>U</AvatarFallback>
+           <AvatarImage src={profile?.avatar_url || ""} alt="User" />
+           <AvatarFallback>{profile?.full_name?.substring(0,2).toUpperCase() || "U"}</AvatarFallback>
         </Avatar>
       </div>
     </header>

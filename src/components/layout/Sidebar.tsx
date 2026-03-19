@@ -7,13 +7,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+import { useProfile } from '@/hooks/useProfile'
+
 interface SidebarProps extends React.HTMLAttributes<HTMLElement> {}
 
 export function Sidebar({ className, ...props }: SidebarProps) {
   const pathname = usePathname()
+  const { profile } = useProfile()
   
-  // For now, assume 'admin' role to show all options
-  const navItems = getNavigationForRole('admin')
+  const role = profile?.role || 'operative'
+  const navItems = getNavigationForRole(role)
 
   return (
     <aside className={cn("flex flex-col w-48 bg-white border-r border-slate-200", className)} {...props}>
@@ -51,12 +54,12 @@ export function Sidebar({ className, ...props }: SidebarProps) {
         <div className="flex items-center justify-between rounded-lg p-2 hover:bg-muted cursor-pointer transition-colors group">
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9">
-              <AvatarImage src="" />
-              <AvatarFallback>OP</AvatarFallback>
+              <AvatarImage src={profile?.avatar_url || ""} />
+              <AvatarFallback>{profile?.full_name?.substring(0,2).toUpperCase() || "OP"}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col">
-              <span className="text-sm font-medium">Operador</span>
-              <span className="text-xs text-muted-foreground">Admin</span>
+              <span className="text-sm font-medium">{profile?.full_name || 'Operador'}</span>
+              <span className="text-xs text-muted-foreground capitalize">{role}</span>
             </div>
           </div>
           <button className="text-muted-foreground hover:text-foreground">

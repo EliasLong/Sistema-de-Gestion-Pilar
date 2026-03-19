@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect } from 'react'
 import type { B2CTrip, TripStatus } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, Lock, Search, ChevronDown } from 'lucide-react'
-import { MOCK_CARRIERS_B2C, getOperatorsForContext, MOCK_LABELERS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
+import { MOCK_CARRIERS_B2C, getOperatorsForContext, MOCK_LABELERS } from '@/lib/mock-tracking'
+import { useProfile } from '@/hooks/useProfile'
 
 export interface B2CRowDraft {
     _localId: string
@@ -25,12 +26,12 @@ export interface B2CRowDraft {
     documents_printed: boolean
 }
 
-function createEmptyB2CRow(): B2CRowDraft {
+function createEmptyB2CRow(userId: string): B2CRowDraft {
     return {
         _localId: crypto.randomUUID(),
         _saved: false,
         _isNew: true,
-        created_by: MOCK_CURRENT_USER.id,
+        created_by: userId,
         created_at: new Date().toISOString(),
         date: new Date().toISOString().split('T')[0],
         carrier: '',
@@ -92,6 +93,9 @@ interface B2CTableProps {
 }
 
 export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatch, onRefresh }: B2CTableProps) {
+    const { profile } = useProfile()
+    const currentUserId = profile?.id || 'unknown'
+    const currentUserRole = profile?.role || 'operative'
     const [rows, setRows] = useState<B2CRowDraft[]>(() => trips.map(tripToRow))
 
     useEffect(() => {
@@ -121,9 +125,10 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     )
 
     const addRow = useCallback(() => {
-        setRows((prev) => [createEmptyB2CRow(), ...prev])
+        const newRow = createEmptyB2CRow(currentUserId)
+        setRows((prev) => [newRow, ...prev])
         onUnsavedChange?.(true)
-    }, [onUnsavedChange])
+    }, [onUnsavedChange, currentUserId])
 
     const removeRow = useCallback(
         (localId: string) => {
@@ -139,7 +144,11 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     const saveRow = useCallback(
         async (localId: string) => {
             const row = rows.find(r => r._localId === localId)
-            if (!row || !isRowComplete(row)) return
+            if (!row) return
+            if (!isRowComplete(row)) {
+                alert("Por favor completa todos los campos de esta fila antes de guardar.")
+                return
+            }
 
             try {
                 // Remove local draft properties
@@ -260,8 +269,8 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                             const editable = row._isNew || canEditRow(
                                 row.created_at,
                                 row.created_by,
-                                MOCK_CURRENT_USER.id,
-                                MOCK_CURRENT_USER.role
+                                currentUserId,
+                                currentUserRole
                             )
                             const rowBorder = !row._saved
                                 ? complete
@@ -467,11 +476,11 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                             {!editable && (
                                                 <span title="Bloqueada — pasaron más de 48hs"><Lock className="h-4 w-4 text-muted-foreground" /></span>
                                             )}
-                                            {editable && !row._saved && complete && (
+                                            {editable && !row._saved && (
                                                 <button
                                                     onClick={() => saveRow(row._localId)}
-                                                    className="rounded-md p-1.5 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
-                                                    title="Guardar fila"
+                                                    className={`rounded-md p-1.5 transition-colors ${complete ? 'text-emerald-400 hover:bg-emerald-500/20' : 'text-amber-500 hover:bg-amber-500/20'}`}
+                                                    title={complete ? "Guardar fila" : "Faltan campos por completar"}
                                                 >
                                                     <Save className="h-4 w-4" />
                                                 </button>

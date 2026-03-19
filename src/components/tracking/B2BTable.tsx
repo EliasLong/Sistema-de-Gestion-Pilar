@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect } from 'react'
 import type { B2BTrip, TripStatus, SheetImportRow } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, RefreshCw, FileSpreadsheet, Lock, ArrowUp, Search, ChevronDown } from 'lucide-react'
-import { MOCK_CARRIERS_B2B, getOperatorsForContext, MOCK_SHEET_IMPORTS, MOCK_CURRENT_USER } from '@/lib/mock-tracking'
+import { MOCK_CARRIERS_B2B, getOperatorsForContext, MOCK_SHEET_IMPORTS } from '@/lib/mock-tracking'
+import { useProfile } from '@/hooks/useProfile'
 
 // ============================================
 // Row Draft types
@@ -38,7 +39,7 @@ function createEmptyB2BRow(): B2BRowDraft {
         _localId: crypto.randomUUID(),
         _saved: false,
         _isNew: true,
-        created_by: MOCK_CURRENT_USER.id,
+        created_by: '',
         created_at: new Date().toISOString(),
         date: new Date().toISOString().split('T')[0],
         carrier: '', vehicle_plate: '', trip_number: '', client: '', client_shift: '',
@@ -60,10 +61,10 @@ function tripToRow(trip: B2BTrip): B2BRowDraft {
     }
 }
 
-function sheetRowToPreview(row: SheetImportRow): B2BRowDraft {
+function sheetRowToPreview(row: SheetImportRow, userId: string): B2BRowDraft {
     return {
         _localId: row._sheetRowId, _saved: false, _isNew: true,
-        created_by: MOCK_CURRENT_USER.id, created_at: new Date().toISOString(),
+        created_by: userId, created_at: new Date().toISOString(),
         date: row.date, carrier: row.carrier, vehicle_plate: row.vehicle_plate,
         trip_number: row.trip_number, client: row.client, client_shift: row.client_shift,
         task_count: String(row.task_count), port: row.port, pallets: String(row.pallets),
@@ -96,6 +97,10 @@ interface B2BTableProps {
 }
 
 export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatch, onRefresh }: B2BTableProps) {
+    const { profile } = useProfile()
+    const currentUserId = profile?.id || 'unknown'
+    const currentUserRole = profile?.role || 'operative'
+    
     const [rows, setRows] = useState<B2BRowDraft[]>(() => trips.map(tripToRow))
     
     useEffect(() => {
@@ -125,7 +130,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         const newImports = MOCK_SHEET_IMPORTS
             .filter((s) => !existingTripNumbers.includes(s.trip_number))
             .filter((s) => !existingImportIds.includes(s._sheetRowId))
-            .map(sheetRowToPreview)
+            .map(s => sheetRowToPreview(s, currentUserId))
 
         if (newImports.length > 0) {
             setImportedRows((prev) => [...prev, ...newImports])
@@ -201,9 +206,11 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     )
 
     const addRow = useCallback(() => {
-        setRows((prev) => [createEmptyB2BRow(), ...prev])
+        const newRow = createEmptyB2BRow()
+        newRow.created_by = currentUserId
+        setRows((prev) => [newRow, ...prev])
         onUnsavedChange?.(true)
-    }, [onUnsavedChange])
+    }, [onUnsavedChange, currentUserId])
 
     const removeRow = useCallback(
         (localId: string) => {
@@ -219,7 +226,11 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     const saveRow = useCallback(
         async (localId: string) => {
             const row = rows.find(r => r._localId === localId)
-            if (!row || !isRowComplete(row)) return
+            if (!row) return
+            if (!isRowComplete(row)) {
+                alert("Por favor completa todos los campos obligatorios de esta fila antes de guardar (Cantidades, Transporte, etc).")
+                return
+            }
 
             try {
                 const { _localId: lId, _saved, _isNew, ...payload } = row as any
@@ -435,7 +446,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                     <tbody>
                         {rows.map((row) => {
                             const complete = isRowComplete(row)
-                            const editable = row._isNew || canEditRow(row.created_at, row.created_by, MOCK_CURRENT_USER.id, MOCK_CURRENT_USER.role)
+                            const editable = row._isNew || canEditRow(row.created_at, row.created_by, currentUserId, currentUserRole)
                             const rowBorder = !row._saved
                                 ? complete ? 'border-l-2 border-l-emerald-500' : 'border-l-2 border-l-amber-500'
                                 : !editable ? 'border-l-2 border-l-muted-foreground/30' : ''
@@ -460,7 +471,9 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                     <td className="p-2">
                                         <div className="flex items-center justify-center gap-1">
                                              {!editable && <span title="Bloqueada — +48hs"><Lock className="h-4 w-4 text-muted-foreground" /></span>}
-                                            {editable && !row._saved && complete && <button onClick={() => saveRow(row._localId)} className="rounded-md p-1.5 text-emerald-400 hover:bg-emerald-500/20 transition-colors" title="Guardar"><Save className="h-4 w-4" /></button>}
+                                            {editable && !row._saved && (
+                                                <button onClick={() => saveRow(row._localId)} className={`rounded-md p-1.5 transition-colors ${complete ? 'text-emerald-400 hover:bg-emerald-500/20' : 'text-amber-500 hover:bg-amber-500/20'}`} title={complete ? "Guardar" : "Faltan datos en la fila"}><Save className="h-4 w-4" /></button>
+                                            )}
                                             {editable && <button onClick={() => removeRow(row._localId)} className="rounded-md p-1.5 text-red-400 hover:bg-red-500/20 transition-colors" title="Eliminar"><Trash2 className="h-4 w-4" /></button>}
                                         </div>
                                     </td>

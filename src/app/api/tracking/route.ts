@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url)
         const warehouse = searchParams.get('warehouse')
         
+        const showDeleted = searchParams.get('showDeleted') === 'true'
+        
         let query = supabase
             .from('tracking_trips')
             .select('*')
@@ -39,6 +41,12 @@ export async function GET(request: NextRequest) {
 
         if (warehouse) {
             query = query.eq('warehouse', warehouse)
+        }
+
+        if (!showDeleted) {
+            query = query.neq('status', 'deleted')
+        } else {
+            query = query.eq('status', 'deleted')
         }
 
         const { data, error } = await query
@@ -130,26 +138,45 @@ export async function DELETE(request: NextRequest) {
         const supabase = createClient()
         const { searchParams } = new URL(request.url)
         const id = searchParams.get('id')
+        const isPermanent = searchParams.get('permanent') === 'true'
 
-        console.log('API: Attempting to delete trip with ID:', id)
+        console.log(`API: Attempting to ${isPermanent ? 'PERMANENTLY' : 'SOFT'} delete trip with ID:`, id)
 
         if (!id) {
             return NextResponse.json({ error: 'Missing row ID' }, { status: 400 })
         }
 
-        const { error, count } = await supabase
-            .from('tracking_trips')
-            .delete({ count: 'exact' })
-            .eq('id', id)
+        let result;
+        if (isPermanent) {
+            // Check for admin role before permanent delete
+            const { data: { user } } = await supabase.auth.getUser()
+            const { data: profile } = await supabase.from('users').select('role').eq('id', user?.id).single()
+            
+            if (profile?.role !== 'admin') {
+                return NextResponse.json({ error: 'Unauthorized for permanent deletion' }, { status: 403 })
+            }
+
+            result = await supabase
+                .from('tracking_trips')
+                .delete({ count: 'exact' })
+                .eq('id', id)
+        } else {
+            result = await supabase
+                .from('tracking_trips')
+                .update({ status: 'deleted', updated_at: new Date().toISOString() })
+                .eq('id', id)
+        }
+
+        const { error, count } = result as any
 
         if (error) {
             console.error('API: Supabase delete error:', error)
             throw error
         }
 
-        console.log('API: Deletion successful, rows affected:', count)
+        console.log('API: Operation successful, rows affected:', count)
 
-        return NextResponse.json({ success: true, deletedCount: count })
+        return NextResponse.json({ success: true, deletedCount: count, type: isPermanent ? 'permanent' : 'soft' })
     } catch (error: any) {
         console.error('DELETE /api/tracking error:', error)
         return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })

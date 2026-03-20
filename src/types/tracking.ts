@@ -13,6 +13,7 @@ export type TripStatus =
     | 'closing_pending_invoice'
     | 'invoiced'
     | 'cancelled'
+    | 'deleted'
 
 export const TRIP_STATUS_LABELS: Record<TripStatus, string> = {
     released: 'Liberado',
@@ -21,6 +22,7 @@ export const TRIP_STATUS_LABELS: Record<TripStatus, string> = {
     closing_pending_invoice: 'Cerrando Pnd Fac',
     invoiced: 'FAC',
     cancelled: 'Cancelado',
+    deleted: 'Borrado',
 }
 
 export const TRIP_STATUS_COLORS: Record<TripStatus, string> = {
@@ -30,6 +32,7 @@ export const TRIP_STATUS_COLORS: Record<TripStatus, string> = {
     closing_pending_invoice: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
     invoiced: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
     cancelled: 'bg-red-500/15 text-red-400 border-red-500/30',
+    deleted: 'bg-slate-500/15 text-slate-400 border-slate-500/30',
 }
 
 /** Campos comunes a B2C y B2B */

@@ -8,6 +8,7 @@ import {
   MessageCircle,
   Settings,
   Users,
+  Trash2,
 } from 'lucide-react'
 import type { UserRole } from '../types/database'
 
@@ -72,6 +73,12 @@ export const navigation: NavItem[] = [
     title: 'Usuarios',
     href: '/configuracion/usuarios',
     icon: Users,
+    roles: ['admin'],
+  },
+  {
+    title: 'Borrado',
+    href: '/tracking/borrado',
+    icon: Trash2,
     roles: ['admin'],
   },
 ]

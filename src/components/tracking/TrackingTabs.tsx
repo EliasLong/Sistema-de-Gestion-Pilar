@@ -13,12 +13,13 @@ interface TrackingTabsProps {
     b2bTrips: B2BTrip[]
     onSave: (data: any, isNew: boolean) => Promise<any>
     onSaveBatch: (data: any[], areNew: boolean) => Promise<any>
+    onDelete: (id: string) => Promise<any>
     onRefresh: () => Promise<void>
 }
 
 type TabValue = 'b2c' | 'b2b'
 
-export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatch, onRefresh }: TrackingTabsProps) {
+export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatch, onDelete, onRefresh }: TrackingTabsProps) {
     const [activeTab, setActiveTab] = useState<TabValue>('b2c')
     const [hasUnsavedB2C, setHasUnsavedB2C] = useState(false)
     const [hasUnsavedB2B, setHasUnsavedB2B] = useState(false)
@@ -129,10 +130,10 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatc
             {/* Content — ambas tablas siempre montadas para no perder estado */}
             <div>
                 <div className={activeTab === 'b2c' ? 'block' : 'hidden'}>
-                    <B2CTable trips={b2cTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2C} onSave={onSave} onSaveBatch={onSaveBatch} onRefresh={onRefresh} />
+                    <B2CTable trips={b2cTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2C} onSave={onSave} onSaveBatch={onSaveBatch} onDelete={onDelete} onRefresh={onRefresh} />
                 </div>
                 <div className={activeTab === 'b2b' ? 'block' : 'hidden'}>
-                    <B2BTable trips={b2bTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2B} onSave={onSave} onSaveBatch={onSaveBatch} onRefresh={onRefresh} />
+                    <B2BTable trips={b2bTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2B} onSave={onSave} onSaveBatch={onSaveBatch} onDelete={onDelete} onRefresh={onRefresh} />
                 </div>
             </div>
         </div>

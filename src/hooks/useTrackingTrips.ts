@@ -53,12 +53,27 @@ export function useTrackingTrips(warehouse?: Warehouse) {
         return results
     }
 
+    const deleteTrip = async (id: string) => {
+        const res = await fetch(`/api/tracking?id=${id}`, {
+            method: 'DELETE'
+        })
+        
+        if (!res.ok) {
+            const error = await res.json()
+            throw new Error(error.error || 'Error deleting trip')
+        }
+        
+        await fetchTrips()
+        return res.json()
+    }
+
     return { 
         b2cTrips, 
         b2bTrips, 
         isLoading, 
         fetchTrips, 
         saveTrip,
-        saveTripsBatch
+        saveTripsBatch,
+        deleteTrip
     }
 }

@@ -93,10 +93,11 @@ interface B2BTableProps {
     onUnsavedChange?: (hasUnsaved: boolean) => void
     onSave: (data: any, isNew: boolean) => Promise<any>
     onSaveBatch: (data: any[], areNew: boolean) => Promise<any>
+    onDelete: (id: string) => Promise<any>
     onRefresh: () => Promise<void>
 }
 
-export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatch, onRefresh }: B2BTableProps) {
+export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatch, onDelete, onRefresh }: B2BTableProps) {
     const { profile } = useProfile()
     const currentUserId = profile?.id || 'unknown'
     const currentUserRole = profile?.role || 'operative'
@@ -217,14 +218,27 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     }, [onUnsavedChange, currentUserId])
 
     const removeRow = useCallback(
-        (localId: string) => {
+        async (localId: string) => {
+            const row = rows.find(r => r._localId === localId)
+            if (row?._saved) {
+                const confirmed = window.confirm('¿Estás seguro de que deseás eliminar este viaje permanentemente?')
+                if (!confirmed) return
+                try {
+                    await onDelete(localId)
+                } catch (e) {
+                    console.error(e)
+                    alert("Error al eliminar el viaje")
+                    return
+                }
+            }
+
             setRows((prev) => {
                 const next = prev.filter((r) => r._localId !== localId)
                 onUnsavedChange?.(next.some((r) => !r._saved) || importedRows.length > 0)
                 return next
             })
         },
-        [onUnsavedChange, importedRows]
+        [onUnsavedChange, importedRows, rows, onDelete]
     )
 
     const saveRow = useCallback(

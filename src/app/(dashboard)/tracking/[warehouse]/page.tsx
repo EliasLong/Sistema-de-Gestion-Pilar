@@ -17,7 +17,7 @@ export default function WarehouseTrackingPage() {
 
     const warehouse = warehouseParam.toUpperCase() as Warehouse
 
-    const { b2cTrips, b2bTrips, isLoading, fetchTrips, saveTrip, saveTripsBatch } = useTrackingTrips(warehouse)
+    const { b2cTrips, b2bTrips, isLoading, fetchTrips, saveTrip, saveTripsBatch, deleteTrip } = useTrackingTrips(warehouse)
 
     return (
         <div className="flex-1 space-y-4">
@@ -32,6 +32,7 @@ export default function WarehouseTrackingPage() {
                     b2bTrips={b2bTrips}
                     onSave={saveTrip}
                     onSaveBatch={saveTripsBatch}
+                    onDelete={deleteTrip}
                     onRefresh={fetchTrips}
                 />
             )}

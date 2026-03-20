@@ -124,3 +124,29 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
     }
 }
+
+export async function DELETE(request: NextRequest) {
+    try {
+        const supabase = createClient()
+        const { searchParams } = new URL(request.url)
+        const id = searchParams.get('id')
+
+        if (!id) {
+            return NextResponse.json({ error: 'Missing row ID' }, { status: 400 })
+        }
+
+        const { error } = await supabase
+            .from('tracking_trips')
+            .delete()
+            .eq('id', id)
+
+        if (error) {
+            throw error
+        }
+
+        return NextResponse.json({ success: true })
+    } catch (error: any) {
+        console.error('DELETE /api/tracking error:', error)
+        return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
+    }
+}

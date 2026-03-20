@@ -54,7 +54,7 @@ function tripToRow(trip: B2BTrip): B2BRowDraft {
         created_by: trip.created_by, created_at: trip.created_at,
         date: trip.date, carrier: trip.carrier, vehicle_plate: trip.vehicle_plate,
         trip_number: trip.trip_number, client: trip.client, client_shift: trip.client_shift,
-        task_count: String(trip.task_count), port: trip.port, pallets: String(trip.pallets),
+        task_count: trip.task_count != null ? String(trip.task_count) : '', port: trip.port, pallets: trip.pallets != null ? String(trip.pallets) : '',
         operators: [...trip.operators], documents_printed: trip.documents_printed,
         detail: trip.detail, comments: trip.comments, bulk_cargo: trip.bulk_cargo,
         status: trip.status,
@@ -67,7 +67,7 @@ function sheetRowToPreview(row: SheetImportRow, userId: string): B2BRowDraft {
         created_by: userId, created_at: new Date().toISOString(),
         date: row.date, carrier: row.carrier, vehicle_plate: row.vehicle_plate,
         trip_number: row.trip_number, client: row.client, client_shift: row.client_shift,
-        task_count: String(row.task_count), port: row.port, pallets: String(row.pallets),
+        task_count: row.task_count != null ? String(row.task_count) : '', port: row.port, pallets: row.pallets != null ? String(row.pallets) : '',
         operators: [...row.operators], documents_printed: row.documents_printed,
         detail: row.detail, comments: row.comments, bulk_cargo: row.bulk_cargo,
         status: '',
@@ -150,6 +150,10 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
             try {
                 const payload = { ...row, status: 'pending', trip_type: 'b2b', warehouse }
                 const { _localId: lId, _saved, _isNew, ...body } = payload as any
+                if (!body.task_count) body.task_count = 0; else body.task_count = Number(body.task_count);
+                if (!body.pallets) body.pallets = 0; else body.pallets = Number(body.pallets);
+                if (!body.status) body.status = 'pending';
+
                 await onSave(body, true)
 
                 setImportedRows((prev) => {
@@ -227,13 +231,13 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         async (localId: string) => {
             const row = rows.find(r => r._localId === localId)
             if (!row) return
-            if (!isRowComplete(row)) {
-                alert("Por favor completa todos los campos obligatorios de esta fila antes de guardar (Cantidades, Transporte, etc).")
-                return
-            }
 
             try {
                 const { _localId: lId, _saved, _isNew, ...payload } = row as any
+                if (!payload.task_count) payload.task_count = 0; else payload.task_count = Number(payload.task_count);
+                if (!payload.pallets) payload.pallets = 0; else payload.pallets = Number(payload.pallets);
+                if (!payload.status) payload.status = 'pending';
+
                 await onSave({ ...payload, trip_type: 'b2b', warehouse }, row._isNew)
                 
                 setRows((prev) => {
@@ -254,18 +258,22 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     )
 
     const saveAll = useCallback(async () => {
-        const rowsToSave = rows.filter((row) => !row._saved && isRowComplete(row))
+        const rowsToSave = rows.filter((row) => !row._saved)
         if (rowsToSave.length === 0) return
 
         try {
             await Promise.all(rowsToSave.map(row => {
                 const { _localId, _saved, _isNew, ...payload } = row as any
+                if (!payload.task_count) payload.task_count = 0; else payload.task_count = Number(payload.task_count);
+                if (!payload.pallets) payload.pallets = 0; else payload.pallets = Number(payload.pallets);
+                if (!payload.status) payload.status = 'pending';
+
                 return onSave({ ...payload, trip_type: 'b2b', warehouse }, row._isNew)
             }))
             
             setRows((prev) => {
                 const next = prev.map((row) => {
-                    if (row._saved || !isRowComplete(row)) return row
+                    if (row._saved) return row
                     return { ...row, _saved: true, _isNew: false }
                 })
                 onUnsavedChange?.(next.some((r) => !r._saved) || importedRows.length > 0)
@@ -453,15 +461,15 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                             return (
                                 <tr key={row._localId} className={`border-b transition-colors hover:bg-muted/20 ${rowBorder} ${!editable ? 'opacity-75' : ''}`}>
-                                    <td className="p-2">{editable ? <input type="date" value={row.date} onChange={(e) => updateRow(row._localId, 'date', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm px-2">{formatDate(row.date)}</span>}</td>
+                                    <td className="p-2">{editable && row._isNew ? <input type="date" value={row.date} onChange={(e) => updateRow(row._localId, 'date', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm px-2">{formatDate(row.date)}</span>}</td>
                                     <td className="p-2">{editable ? <select value={row.carrier} onChange={(e) => updateRow(row._localId, 'carrier', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"><option value="">Seleccionar</option>{MOCK_CARRIERS_B2B.map((c) => <option key={c} value={c}>{c}</option>)}</select> : <span className="text-sm font-medium px-2">{row.carrier}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.vehicle_plate} onChange={(e) => updateRow(row._localId, 'vehicle_plate', e.target.value.toUpperCase())} placeholder="AB 123 CD" className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.vehicle_plate}</span>}</td>
-                                    <td className="p-2">{editable ? <input type="text" value={row.trip_number} onChange={(e) => updateRow(row._localId, 'trip_number', e.target.value)} placeholder="Nro" className="w-[80px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.trip_number}</span>}</td>
+                                    <td className="p-2">{editable ? <input type="text" value={row.trip_number} onChange={(e) => updateRow(row._localId, 'trip_number', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Nro" maxLength={6} className="w-[80px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.trip_number}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.client} onChange={(e) => updateRow(row._localId, 'client', e.target.value)} placeholder="Nombre" className="w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-medium px-2">{row.client}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.client_shift} onChange={(e) => updateRow(row._localId, 'client_shift', e.target.value)} placeholder="Turno" className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm px-2">{row.client_shift}</span>}</td>
-                                    <td className="p-2 text-center">{editable ? <input type="number" value={row.task_count} onChange={(e) => updateRow(row._localId, 'task_count', e.target.value)} min={0} className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block" /> : <span className="text-sm">{row.task_count}</span>}</td>
+                                    <td className="p-2 text-center">{editable ? <input type="text" value={row.task_count} onChange={(e) => updateRow(row._localId, 'task_count', e.target.value.replace(/\D/g, '').slice(0, 4))} maxLength={4} className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block" /> : <span className="text-sm">{row.task_count}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.port} onChange={(e) => updateRow(row._localId, 'port', e.target.value)} placeholder="Puerto" className="w-[70px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.port}</span>}</td>
-                                    <td className="p-2 text-center">{editable ? <input type="number" value={row.pallets} onChange={(e) => updateRow(row._localId, 'pallets', e.target.value.slice(0, 2))} min={0} max={99} className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block" /> : <span className="text-sm font-semibold">{row.pallets}</span>}</td>
+                                    <td className="p-2 text-center">{editable ? <input type="text" value={row.pallets} onChange={(e) => updateRow(row._localId, 'pallets', e.target.value.replace(/\D/g, '').slice(0, 2))} maxLength={2} className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block" /> : <span className="text-sm font-semibold">{row.pallets}</span>}</td>
                                     <td className="p-2">{editable ? <OperatorMultiSelect selected={row.operators} warehouse={warehouse} onToggle={(op) => toggleOperator(row._localId, op, false)} /> : <div className="flex flex-wrap gap-1">{row.operators.map((op) => <span key={op} className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium">{op.split(' ')[0]}</span>)}</div>}</td>
                                     <td className="p-2 text-center">{editable ? <button onClick={() => updateRow(row._localId, 'documents_printed', !row.documents_printed)} className={`mx-auto flex h-7 w-7 items-center justify-center rounded-md border transition-colors ${row.documents_printed ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-transparent border-input text-muted-foreground hover:text-foreground'}`}>{row.documents_printed ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}</button> : row.documents_printed ? <Check className="h-4 w-4 text-emerald-400 mx-auto" /> : <X className="h-4 w-4 text-red-400 mx-auto" />}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.detail} onChange={(e) => updateRow(row._localId, 'detail', e.target.value)} placeholder="Detalle..." className="w-[130px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm truncate max-w-[130px] block" title={row.detail}>{row.detail || '—'}</span>}</td>
@@ -472,7 +480,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         <div className="flex items-center justify-center gap-1">
                                              {!editable && <span title="Bloqueada — +48hs"><Lock className="h-4 w-4 text-muted-foreground" /></span>}
                                             {editable && !row._saved && (
-                                                <button onClick={() => saveRow(row._localId)} className={`rounded-md p-1.5 transition-colors ${complete ? 'text-emerald-400 hover:bg-emerald-500/20' : 'text-amber-500 hover:bg-amber-500/20'}`} title={complete ? "Guardar" : "Faltan datos en la fila"}><Save className="h-4 w-4" /></button>
+                                                <button onClick={() => saveRow(row._localId)} className={`rounded-md p-1.5 transition-colors text-emerald-400 hover:bg-emerald-500/20`} title={"Guardar"}><Save className="h-4 w-4" /></button>
                                             )}
                                             {editable && <button onClick={() => removeRow(row._localId)} className="rounded-md p-1.5 text-red-400 hover:bg-red-500/20 transition-colors" title="Eliminar"><Trash2 className="h-4 w-4" /></button>}
                                         </div>

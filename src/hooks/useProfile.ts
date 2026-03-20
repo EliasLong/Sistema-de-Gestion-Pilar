@@ -27,9 +27,16 @@ export function useProfile() {
         return
       }
 
+      const isAdminEmail = ['ignacio.longstaff@ocasa.com', 'juan.cajaravilla@ocasa.com'].includes(user.email?.toLowerCase() || '')
+
       const { data } = await supabase.from('users').select('*').eq('id', user.id).single()
       if (data) {
-        cachedProfile = data as UserProfile
+        let currentProfile = data as UserProfile
+        if (isAdminEmail && currentProfile.role !== 'admin') {
+          currentProfile = { ...currentProfile, role: 'admin' }
+          supabase.from('users').update({ role: 'admin' }).eq('id', user.id).then()
+        }
+        cachedProfile = currentProfile
         setProfile(cachedProfile)
       } else {
         cachedProfile = {
@@ -37,7 +44,7 @@ export function useProfile() {
           email: user.email!,
           full_name: user.user_metadata?.full_name || 'Usuario',
           avatar_url: user.user_metadata?.avatar_url || null,
-          role: 'operative' // default
+          role: isAdminEmail ? 'admin' : 'operative'
         }
         setProfile(cachedProfile)
       }

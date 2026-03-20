@@ -30,7 +30,7 @@ export const MOCK_CARRIERS_B2C = [
     'Andreani service',
     'ANDREANI PEDIDOS ESPECIALES',
     'ANDREANI MULTIBULTO B2C',
-]
+].sort((a, b) => a.localeCompare(b))
 
 export const MOCK_CARRIERS_B2B = [
     '26/02/26',
@@ -55,7 +55,7 @@ export const MOCK_CARRIERS_B2B = [
     'TABLADA TRUCK',
     'TOLIZ',
     'TRANSPORTE NORTE S.A'
-]
+].sort((a, b) => a.localeCompare(b))
 
 export interface Operator {
     id: string

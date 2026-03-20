@@ -58,11 +58,11 @@ function tripToRow(trip: B2CTrip): B2CRowDraft {
         carrier: trip.carrier,
         trip_number: trip.trip_number,
         operators: [...trip.operators],
-        pallet_count: String(trip.pallet_count),
+        pallet_count: trip.pallet_count != null ? String(trip.pallet_count) : '',
         port: trip.port,
-        task_count: String(trip.task_count),
+        task_count: trip.task_count != null ? String(trip.task_count) : '',
         status: trip.status,
-        pallets_dispatched: String(trip.pallets_dispatched),
+        pallets_dispatched: trip.pallets_dispatched != null ? String(trip.pallets_dispatched) : '',
         labeler: trip.labeler,
         documents_printed: trip.documents_printed,
     }
@@ -145,14 +145,15 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         async (localId: string) => {
             const row = rows.find(r => r._localId === localId)
             if (!row) return
-            if (!isRowComplete(row)) {
-                alert("Por favor completa todos los campos de esta fila antes de guardar.")
-                return
-            }
 
             try {
                 // Remove local draft properties
                 const { _localId, _saved, _isNew, ...payload } = row as any
+                if (!payload.task_count) payload.task_count = 0; else payload.task_count = Number(payload.task_count);
+                if (!payload.pallet_count) payload.pallet_count = 0; else payload.pallet_count = Number(payload.pallet_count);
+                if (!payload.pallets_dispatched) payload.pallets_dispatched = 0; else payload.pallets_dispatched = Number(payload.pallets_dispatched);
+                if (!payload.status) payload.status = 'pending';
+
                 await onSave({ ...payload, trip_type: 'b2c', warehouse }, row._isNew)
                 
                 setRows((prev) => {
@@ -173,18 +174,23 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     )
 
     const saveAll = useCallback(async () => {
-        const rowsToSave = rows.filter((row) => !row._saved && isRowComplete(row))
+        const rowsToSave = rows.filter((row) => !row._saved)
         if (rowsToSave.length === 0) return
 
         try {
             await Promise.all(rowsToSave.map(row => {
                 const { _localId, _saved, _isNew, ...payload } = row as any
+                if (!payload.task_count) payload.task_count = 0; else payload.task_count = Number(payload.task_count);
+                if (!payload.pallet_count) payload.pallet_count = 0; else payload.pallet_count = Number(payload.pallet_count);
+                if (!payload.pallets_dispatched) payload.pallets_dispatched = 0; else payload.pallets_dispatched = Number(payload.pallets_dispatched);
+                if (!payload.status) payload.status = 'pending';
+
                 return onSave({ ...payload, trip_type: 'b2c', warehouse }, row._isNew)
             }))
             
             setRows((prev) => {
                 const next = prev.map((row) => {
-                    if (row._saved || !isRowComplete(row)) return row
+                    if (row._saved) return row
                     return { ...row, _saved: true, _isNew: false }
                 })
                 onUnsavedChange?.(next.some((r) => !r._saved))
@@ -287,7 +293,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                 >
                                     {/* Fecha */}
                                     <td className="p-2 align-middle">
-                                        {editable ? (
+                                        {editable && row._isNew ? (
                                             <input
                                                 type="date"
                                                 value={row.date}
@@ -359,10 +365,10 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
                                             <input
-                                                type="number"
+                                                type="text"
                                                 value={row.pallet_count}
-                                                onChange={(e) => updateRow(row._localId, 'pallet_count', e.target.value.slice(0, 2))}
-                                                min={0} max={99}
+                                                onChange={(e) => updateRow(row._localId, 'pallet_count', e.target.value.replace(/\D/g, '').slice(0, 2))}
+                                                maxLength={2}
                                                 className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block"
                                             />
                                         ) : (
@@ -388,9 +394,9 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
                                             <input
-                                                type="number" value={row.task_count}
-                                                onChange={(e) => updateRow(row._localId, 'task_count', e.target.value)}
-                                                min={0}
+                                                type="text" value={row.task_count}
+                                                onChange={(e) => updateRow(row._localId, 'task_count', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                                maxLength={4}
                                                 className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block"
                                             />
                                         ) : (
@@ -423,9 +429,9 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
                                             <input
-                                                type="number" value={row.pallets_dispatched}
-                                                onChange={(e) => updateRow(row._localId, 'pallets_dispatched', e.target.value.slice(0, 2))}
-                                                min={0} max={99}
+                                                type="text" value={row.pallets_dispatched}
+                                                onChange={(e) => updateRow(row._localId, 'pallets_dispatched', e.target.value.replace(/\D/g, '').slice(0, 2))}
+                                                maxLength={2}
                                                 className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block"
                                             />
                                         ) : (
@@ -479,8 +485,8 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                             {editable && !row._saved && (
                                                 <button
                                                     onClick={() => saveRow(row._localId)}
-                                                    className={`rounded-md p-1.5 transition-colors ${complete ? 'text-emerald-400 hover:bg-emerald-500/20' : 'text-amber-500 hover:bg-amber-500/20'}`}
-                                                    title={complete ? "Guardar fila" : "Faltan campos por completar"}
+                                                    className="rounded-md p-1.5 transition-colors text-emerald-400 hover:bg-emerald-500/20"
+                                                    title="Guardar fila"
                                                 >
                                                     <Save className="h-4 w-4" />
                                                 </button>

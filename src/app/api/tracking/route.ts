@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         
         let query = supabase
             .from('tracking_trips')
-            .select('*')
+            .select('*', { count: 'exact' })
             .order('created_at', { ascending: false })
 
         if (warehouse) {
@@ -139,6 +139,7 @@ export async function DELETE(request: NextRequest) {
         const { searchParams } = new URL(request.url)
         const id = searchParams.get('id')
         const isPermanent = searchParams.get('permanent') === 'true'
+        const warehouse = searchParams.get('warehouse')
 
         console.log(`API: Attempting to ${isPermanent ? 'PERMANENTLY' : 'SOFT'} delete trip with ID:`, id)
 
@@ -172,10 +173,23 @@ export async function DELETE(request: NextRequest) {
                 return NextResponse.json({ error: 'Unauthorized for permanent deletion. Role: ' + (profile?.role || 'none') }, { status: 403 })
             }
 
-            result = await supabase
-                .from('tracking_trips')
-                .delete({ count: 'exact' })
-                .eq('id', id)
+            if (id === 'all') {
+                const query = supabase
+                    .from('tracking_trips')
+                    .delete({ count: 'exact' })
+                    .eq('status', 'deleted')
+                
+                if (warehouse) {
+                    result = await query.eq('warehouse', warehouse)
+                } else {
+                    result = await query
+                }
+            } else {
+                result = await supabase
+                    .from('tracking_trips')
+                    .delete({ count: 'exact' })
+                    .eq('id', id)
+            }
         } else {
             result = await supabase
                 .from('tracking_trips')

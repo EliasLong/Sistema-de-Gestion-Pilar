@@ -9,7 +9,8 @@ export function useTrackingTrips(warehouse?: Warehouse) {
     const fetchTrips = useCallback(async () => {
         setIsLoading(true)
         try {
-            const query = warehouse ? `?warehouse=${warehouse}` : ''
+            const t = Date.now()
+            const query = warehouse ? `?warehouse=${warehouse}&t=${t}` : `?t=${t}`
             const res = await fetch(`/api/tracking${query}`)
             if (res.ok) {
                 const data = await res.json()

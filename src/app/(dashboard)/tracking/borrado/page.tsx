@@ -56,6 +56,33 @@ export default function DeletedTripsPage() {
         }
     }
 
+    const handleDeleteAll = async () => {
+        const msg = warehouse 
+            ? `¿Estás seguro de que deseás eliminar TODOS los registros de este depósito (${warehouse}) PERMANENTEMENTE?`
+            : '¿Estás seguro de que deseás eliminar TODOS los registros borrados PERMANENTEMENTE?'
+        
+        if (!window.confirm(msg)) {
+            return
+        }
+
+        try {
+            const url = warehouse 
+                ? `/api/tracking?id=all&permanent=true&warehouse=${warehouse}`
+                : `/api/tracking?id=all&permanent=true`
+            
+            const res = await fetch(url, { method: 'DELETE' })
+            if (res.ok) {
+                alert('Papelera vaciada correctamente')
+                loadDeleted()
+            } else {
+                const err = await res.json()
+                alert('Error: ' + (err.error || 'No se pudo vaciar la papelera'))
+            }
+        } catch (error) {
+            alert('Error de red')
+        }
+    }
+
     const handleRestore = async (id: string) => {
         try {
             const res = await fetch('/api/tracking', {
@@ -86,10 +113,23 @@ export default function DeletedTripsPage() {
                         <p className="text-muted-foreground">Administración de viajes borrados {warehouse ? `(${warehouse})` : '(Todos)'}</p>
                     </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={loadDeleted} disabled={isLoading}>
-                    <RefreshCcw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                    Actualizar
-                </Button>
+                <div className="flex items-center gap-2">
+                    {deletedTrips.length > 0 && (
+                        <Button 
+                            variant="destructive" 
+                            size="sm" 
+                            onClick={handleDeleteAll} 
+                            disabled={isLoading}
+                        >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Vaciar Papelera
+                        </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={loadDeleted} disabled={isLoading}>
+                        <RefreshCcw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                        Actualizar
+                    </Button>
+                </div>
             </div>
 
             <Card>

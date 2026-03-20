@@ -567,7 +567,21 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                 <tr key={row._localId} className={`border-b transition-colors hover:bg-muted/20 ${rowBorder} ${!editable ? 'opacity-75' : ''}`}>
                                     <td className="p-2">{editable && row._isNew ? <input type="date" value={row.date} onChange={(e) => updateRow(row._localId, 'date', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm px-2">{formatDate(row.date)}</span>}</td>
                                     <td className="p-2">{editable ? <select value={row.carrier} onChange={(e) => updateRow(row._localId, 'carrier', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"><option value="">Seleccionar</option>{MOCK_CARRIERS_B2B.map((c) => <option key={c} value={c}>{c}</option>)}</select> : <span className="text-sm font-medium px-2">{row.carrier}</span>}</td>
-                                    <td className="p-2 py-3 text-xs font-medium text-muted-foreground px-4 truncate max-w-[120px]" title={row.retira}>{row.retira || '—'}</td>
+                                    <td className="p-2 align-middle">
+                                        {editable ? (
+                                            <input
+                                                type="text"
+                                                value={row.retira || ''}
+                                                onChange={(e) => updateRow(row._localId, 'retira', e.target.value)}
+                                                placeholder="Retira"
+                                                className="w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <div className="text-xs font-medium px-2 text-muted-foreground truncate max-w-[120px]" title={row.retira}>
+                                                {row.retira || '—'}
+                                            </div>
+                                        )}
+                                    </td>
                                     <td className="p-2">{editable ? <input type="text" value={row.vehicle_plate} onChange={(e) => updateRow(row._localId, 'vehicle_plate', e.target.value.toUpperCase())} placeholder="AB 123 CD" className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.vehicle_plate}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.trip_number} onChange={(e) => updateRow(row._localId, 'trip_number', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Nro" maxLength={6} className="w-[80px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.trip_number}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.client} onChange={(e) => updateRow(row._localId, 'client', e.target.value)} placeholder="Nombre" className="w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-medium px-2">{row.client}</span>}</td>

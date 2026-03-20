@@ -590,16 +590,36 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     {/* Retira */}
                                     <td className="p-2 align-middle">
-                                        <div className="text-xs font-medium px-2 text-muted-foreground truncate max-w-[120px]" title={row.retira}>
-                                            {row.retira || '—'}
-                                        </div>
+                                        {editable ? (
+                                            <input
+                                                type="text"
+                                                value={row.retira || ''}
+                                                onChange={(e) => updateRow(row._localId, 'retira', e.target.value)}
+                                                placeholder="Retira"
+                                                className="w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <div className="text-xs font-medium px-2 text-muted-foreground truncate max-w-[120px]" title={row.retira}>
+                                                {row.retira || '—'}
+                                            </div>
+                                        )}
                                     </td>
-
+                                    
                                     {/* Patente */}
                                     <td className="p-2 align-middle">
-                                        <div className="text-xs font-mono px-2 text-muted-foreground">
-                                            {row.vehicle_plate || '—'}
-                                        </div>
+                                        {editable ? (
+                                            <input
+                                                type="text"
+                                                value={row.vehicle_plate || ''}
+                                                onChange={(e) => updateRow(row._localId, 'vehicle_plate', e.target.value.toUpperCase())}
+                                                placeholder="AB 123 CD"
+                                                className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <div className="text-xs font-mono px-2 text-muted-foreground">
+                                                {row.vehicle_plate || '—'}
+                                            </div>
+                                        )}
                                     </td>
 
                                     {/* Operarios */}

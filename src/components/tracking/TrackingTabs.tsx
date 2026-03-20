@@ -106,7 +106,7 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatc
                     </button>
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">
-                            {warehouse} —&gt; {profile?.full_name || 'Cargando...'}
+                            {warehouse} -&gt; {profile?.full_name || 'Usuario'}
                         </h1>
                         <p className="text-sm text-muted-foreground">
                             Registro de movimientos de viajes

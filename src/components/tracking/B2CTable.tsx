@@ -543,7 +543,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                 >
                                     {/* Fecha */}
                                     <td className="p-2 align-middle">
-                                        {editable && row._isNew ? (
+                                        {editable ? (
                                             <input
                                                 type="date"
                                                 value={row.date}

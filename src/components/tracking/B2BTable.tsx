@@ -566,7 +566,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                             return (
                                 <tr key={row._localId} className={`border-b transition-colors hover:bg-muted/20 ${rowBorder} ${!editable ? 'opacity-75' : ''}`}>
-                                    <td className="p-2">{editable && row._isNew ? <input type="date" value={row.date} onChange={(e) => updateRow(row._localId, 'date', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm px-2">{formatDate(row.date)}</span>}</td>
+                                    <td className="p-2">{editable ? <input type="date" value={row.date} onChange={(e) => updateRow(row._localId, 'date', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm px-2">{formatDate(row.date)}</span>}</td>
                                     <td className="p-2">{editable ? <select value={row.carrier} onChange={(e) => updateRow(row._localId, 'carrier', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"><option value="">Seleccionar</option>{MOCK_CARRIERS_B2B.map((c) => <option key={c} value={c}>{c}</option>)}</select> : <span className="text-sm font-medium px-2">{row.carrier}</span>}</td>
                                     <td className="p-2 align-middle">
                                         {editable ? (

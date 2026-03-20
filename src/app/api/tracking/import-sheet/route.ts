@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
                 let formattedDate = new Date().toISOString().split('T')[0]
                 if (row[0]) {
-                    const dateStr = String(row[0]).trim()
+                    const dateStr = String(row[0]).replace(/^\uFEFF/, '').trim()
                     const parts = dateStr.split(/[\/\-]/)
                     if (parts.length === 3) {
                         if (parts[0].length === 4) {
@@ -69,24 +69,24 @@ export async function GET(request: NextRequest) {
                 const tripType = isB2C ? 'b2c' : 'b2b'
 
                 // Specific mapping:
-                // For B2C: carrier="Flota Propia", retira=row[1], vehicle_plate=row[2] (Patente)
-                // For B2B: carrier=row[1], retira=row[1], vehicle_plate=row[2]
+                // For B2C: carrier="Flota Propia", retira=row[1], vehicle_plate=row[3] (Patente)
+                // For B2B: carrier=row[1], retira=row[1], vehicle_plate=row[3]
                 const carrier = isB2C ? 'Flota Propia' : row[1]
                 const retira = row[1]
-                const vehicle_plate = row[2]
+                const vehicle_plate = row[3] // Column D
 
                 return {
                     date: formattedDate,
                     carrier,
                     retira,
                     vehicle_plate,
-                    trip_number: row[12],
-                    client: clientName,
-                    client_shift: row[8],
-                    task_count: row[7] || '0',
-                    port: row[13],
-                    pallets: row[5] || '0',
-                    comments: row[16] || '',
+                    trip_number: row[12], // Column M
+                    client: clientName, // Column O
+                    client_shift: row[15], // Column P (turno_en_el_cliente)
+                    task_count: row[7] || '0', // Column H (vuelta) - Keep as is or adjust if tasks are in another col
+                    port: row[17], // Column R (puerto)
+                    pallets: row[6] || '0', // Column G (palletizado)
+                    comments: row[16] || '', // Column Q (observaciones)
                     warehouse: deposito,
                     trip_type: tripType
                 }

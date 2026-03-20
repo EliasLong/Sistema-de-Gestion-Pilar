@@ -119,28 +119,104 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     const unsavedRows = rows.filter((r) => !r._saved)
     const hasUnsaved = unsavedRows.length > 0 || importedRows.length > 0
 
-    // --- Refresh from Sheet (simulated) ---
+    // --- Refresh from Sheet (Real) ---
     const handleRefreshFromSheet = useCallback(async () => {
         setIsRefreshing(true)
-        // Simular delay de API
-        await new Promise((resolve) => setTimeout(resolve, 1500))
+        try {
+            const SHEET_ID = '1QwWUe34Yn0BnTfb8WckxzDRmEKJfuATPse9g76VM3n8'
+            const GID = '0'
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&tq=&gid=${GID}`
+            
+            const res = await fetch(url)
+            const text = await res.text()
+            // The response starts with "/*--WIZ_v1.0*/\ngoogle.visualization.Query.setResponse(" and ends with ");"
+            const jsonText = text.substring(text.indexOf('({') + 1, text.lastIndexOf('})') + 1)
+            const json = JSON.parse(jsonText)
+            
+            const table = json.table
+            const cols = table.cols
+            const rows_data = table.rows
 
-        const existingTripNumbers = rows.map((r) => r.trip_number)
-        const existingImportIds = importedRows.map((r) => r._localId)
+            // Mapping columns based on identified structure:
+            // A (0): fecha, B (1): transporte, F (5): metros (task_count), G (6): palletizado (pallets)
+            // J (9): deposito (PL2/PL3), M (12): numero de viaje, O (14): cliente, R (17): puerto
+            
+            const newImports = rows_data
+                .map((r: any) => {
+                    const v = (idx: number) => r.c[idx]?.v
+                    const fv = (idx: number) => r.c[idx]?.f || String(r.c[idx]?.v || '')
+                    
+                    const rawDate = v(0)
+                    let formattedDate = new Date().toISOString().split('T')[0]
+                    if (rawDate) {
+                        try {
+                            // If it's a date object from gviz
+                            const d = new Date(rawDate)
+                            if (!isNaN(d.getTime())) {
+                                formattedDate = d.toISOString().split('T')[0]
+                            }
+                        } catch (e) {
+                            // fallback to fv(0) if provided or current date
+                            const f = fv(0)
+                            if (f && f.includes('/')) {
+                                const parts = f.split('/')
+                                if (parts.length === 3) {
+                                    // Handle DD/MM/YYYY or MM/DD/YYYY? 
+                                    // Usually it's local. Let's try to be smart.
+                                    formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
+                                }
+                            }
+                        }
+                    }
 
-        const newImports = MOCK_SHEET_IMPORTS
-            .filter((s) => !existingTripNumbers.includes(s.trip_number))
-            .filter((s) => !existingImportIds.includes(s._sheetRowId))
-            .map(s => sheetRowToPreview(s, currentUserId))
+                    const tripNum = String(v(12) || '').trim()
+                    if (!tripNum) return null
 
-        if (newImports.length > 0) {
-            setImportedRows((prev) => [...prev, ...newImports])
-            onUnsavedChange?.(true)
+                    return {
+                        _localId: `sheet-${tripNum}-${Date.now()}`,
+                        _saved: false,
+                        _isNew: true,
+                        created_by: currentUserId,
+                        created_at: new Date().toISOString(),
+                        date: formattedDate,
+                        carrier: String(fv(1) || ''),
+                        vehicle_plate: '', 
+                        trip_number: tripNum,
+                        client: String(v(14) || ''),
+                        client_shift: '', // Missing in sheet
+                        task_count: String(v(5) || '0'),
+                        port: String(v(17) || ''),
+                        pallets: String(v(6) || '0'),
+                        operators: [],
+                        documents_printed: false,
+                        detail: '',
+                        comments: '',
+                        bulk_cargo: false,
+                        status: ''
+                    } as B2BRowDraft
+                })
+                .filter((row: any) => row !== null)
+                // Filter out already existing trip numbers
+                .filter((row: any) => !rows.some(r => r.trip_number === row.trip_number))
+                // Filter out already imported IDs
+                .filter((row: any) => !importedRows.some(r => r.trip_number === row.trip_number))
+
+            if (newImports.length > 0) {
+                setImportedRows((prev) => [...prev, ...newImports])
+                onUnsavedChange?.(true)
+                alert(`Se encontraron ${newImports.length} nuevos viajes para ${warehouse}`)
+            } else {
+                alert(`No se encontraron nuevos viajes para ${warehouse} en el Sheet`)
+            }
+
+            setLastRefresh(new Date().toLocaleTimeString('es-AR'))
+        } catch (error) {
+            console.error('Error fetching Google Sheet:', error)
+            alert('Error al conectar con Google Sheets. Verificá que el archivo sea público.')
+        } finally {
+            setIsRefreshing(false)
         }
-
-        setLastRefresh(new Date().toLocaleTimeString('es-AR'))
-        setIsRefreshing(false)
-    }, [rows, importedRows, onUnsavedChange])
+    }, [rows, importedRows, onUnsavedChange, warehouse, currentUserId])
 
     // --- Confirm imported row → save to database as "Pendiente" ---
     const confirmImportedRow = useCallback(

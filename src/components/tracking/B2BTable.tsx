@@ -229,9 +229,10 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 try {
                     console.log('B2BTable: Calling onDelete for:', localId)
                     await onDelete(localId)
+                    alert("Viaje eliminado permanentemente")
                 } catch (e) {
                     console.error('B2BTable: Deletion failed:', e)
-                    alert("Error al eliminar el viaje")
+                    alert("Error al eliminar el viaje: " + (e instanceof Error ? e.message : String(e)))
                     return
                 }
             }
@@ -500,7 +501,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                             {editable && !row._saved && (
                                                 <button onClick={() => saveRow(row._localId)} className={`rounded-md p-1.5 transition-colors text-emerald-400 hover:bg-emerald-500/20`} title={"Guardar"}><Save className="h-4 w-4" /></button>
                                             )}
-                                            {editable && <button onClick={() => removeRow(row._localId)} className="rounded-md p-1.5 text-red-400 hover:bg-red-500/20 transition-colors" title="Eliminar"><Trash2 className="h-4 w-4" /></button>}
+                                            {(editable || currentUserRole === 'operative') && <button onClick={() => removeRow(row._localId)} className="rounded-md p-1.5 text-red-400 hover:bg-red-500/20 transition-colors" title="Eliminar"><Trash2 className="h-4 w-4" /></button>}
                                         </div>
                                     </td>
                                 </tr>

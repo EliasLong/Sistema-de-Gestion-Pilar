@@ -143,9 +143,10 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 try {
                     console.log('B2CTable: Calling onDelete for:', localId)
                     await onDelete(localId)
+                    alert("Viaje eliminado permanentemente")
                 } catch (e) {
                     console.error('B2CTable: Deletion failed:', e)
-                    alert("Error al eliminar el viaje")
+                    alert("Error al eliminar el viaje: " + (e instanceof Error ? e.message : String(e)))
                     return
                 }
             }
@@ -509,11 +510,11 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                                     <Save className="h-4 w-4" />
                                                 </button>
                                             )}
-                                            {editable && (
+                                            {(editable || currentUserRole === 'operative') && (
                                                 <button
                                                     onClick={() => removeRow(row._localId)}
                                                     className="rounded-md p-1.5 text-red-400 hover:bg-red-500/20 transition-colors"
-                                                    title="Eliminar fila"
+                                                    title="Eliminar"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>

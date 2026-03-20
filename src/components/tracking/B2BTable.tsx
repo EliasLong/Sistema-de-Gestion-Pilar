@@ -224,12 +224,12 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
             console.log('B2BTable: Found row:', row)
             
             if (row?._saved) {
-                const confirmed = window.confirm('¿Estás seguro de que deseás eliminar este viaje permanentemente?')
+                const confirmed = window.confirm('¿Deseás enviar este viaje al módulo de Borrado? Podrá ser eliminado definitivamente por un administrador.')
                 if (!confirmed) return
                 try {
                     console.log('B2BTable: Calling onDelete for:', localId)
                     await onDelete(localId)
-                    alert("Viaje eliminado permanentemente")
+                    alert("Viaje enviado al módulo de Borrado")
                 } catch (e) {
                     console.error('B2BTable: Deletion failed:', e)
                     alert("Error al eliminar el viaje: " + (e instanceof Error ? e.message : String(e)))

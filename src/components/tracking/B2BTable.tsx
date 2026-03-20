@@ -47,7 +47,7 @@ function createEmptyB2BRow(): B2BRowDraft {
         date: new Date().toISOString().split('T')[0],
         carrier: '', vehicle_plate: '', trip_number: '', client: '', client_shift: '',
         task_count: '', port: '', pallets: '', operators: [], documents_printed: false,
-        detail: '', comments: '', bulk_cargo: false, status: '',
+        detail: '', comments: '', bulk_cargo: false, status: '', retira: '',
     }
 }
 

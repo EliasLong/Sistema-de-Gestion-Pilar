@@ -47,6 +47,8 @@ function createEmptyB2CRow(userId: string): B2CRowDraft {
         pallets_dispatched: '',
         labeler: '',
         documents_printed: false,
+        retira: '',
+        vehicle_plate: '',
     }
 }
 
@@ -68,6 +70,8 @@ function tripToRow(trip: B2CTrip): B2CRowDraft {
         pallets_dispatched: trip.pallets_dispatched != null ? String(trip.pallets_dispatched) : '',
         labeler: trip.labeler,
         documents_printed: trip.documents_printed,
+        retira: trip.retira,
+        vehicle_plate: trip.vehicle_plate,
     }
 }
 

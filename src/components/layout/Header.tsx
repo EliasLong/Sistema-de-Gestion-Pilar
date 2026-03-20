@@ -16,7 +16,8 @@ export function Header() {
     if (pathname === '/dashboard') return 'Dashboard'
     const segments = pathname.split('/').filter(Boolean)
     const currentSegment = segments[1] || segments[0]
-    return currentSegment.charAt(0).toUpperCase() + currentSegment.slice(1)
+    const title = currentSegment.charAt(0).toUpperCase() + currentSegment.slice(1)
+    return (currentSegment === 'pl2' || currentSegment === 'pl3') ? currentSegment.toUpperCase() : title
   }
 
   return (

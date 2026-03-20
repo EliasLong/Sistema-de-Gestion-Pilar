@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { B2CTrip, TripStatus } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
-import { Check, X, Plus, Save, Trash2, Lock, Search, ChevronDown } from 'lucide-react'
+import { Check, X, Plus, Save, Trash2, Lock, Search, ChevronDown, RefreshCw, FileSpreadsheet } from 'lucide-react'
 import { MOCK_CARRIERS_B2C, getOperatorsForContext, MOCK_LABELERS } from '@/lib/mock-tracking'
 import { useProfile } from '@/hooks/useProfile'
 
@@ -98,6 +98,9 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     const currentUserId = profile?.id || 'unknown'
     const currentUserRole = profile?.role || 'operative'
     const [rows, setRows] = useState<B2CRowDraft[]>(() => trips.map(tripToRow))
+    const [importedRows, setImportedRows] = useState<B2CRowDraft[]>([])
+    const [isRefreshing, setIsRefreshing] = useState(false)
+    const [lastRefresh, setLastRefresh] = useState<string | null>(null)
 
     useEffect(() => {
         setRows(prev => {
@@ -109,7 +112,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     }, [trips])
 
     const unsavedRows = rows.filter((r) => !r._saved)
-    const hasUnsaved = unsavedRows.length > 0
+    const hasUnsaved = unsavedRows.length > 0 || importedRows.length > 0
 
     const updateRow = useCallback(
         (localId: string, field: keyof B2CRowDraft, value: unknown) => {
@@ -130,6 +133,81 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         setRows((prev) => [newRow, ...prev])
         onUnsavedChange?.(true)
     }, [onUnsavedChange, currentUserId])
+
+    // --- Refresh from Sheet ---
+    const handleRefreshFromSheet = useCallback(async () => {
+        setIsRefreshing(true)
+        try {
+            const res = await fetch(`/api/tracking/import-sheet?warehouse=${warehouse}`)
+            if (!res.ok) throw new Error('Error en la API de importación')
+            
+            const data = await res.json()
+            if (data.error) throw new Error(data.error)
+
+            const newImports = data
+                .filter((item: any) => item.trip_type === 'b2c')
+                .map((item: any) => ({
+                    _localId: `sheet-${item.trip_number}-${Date.now()}`,
+                    _saved: false,
+                    _isNew: true,
+                    created_by: currentUserId,
+                    created_at: new Date().toISOString(),
+                    date: item.date,
+                    carrier: item.carrier,
+                    trip_number: item.trip_number,
+                    operators: [],
+                    pallet_count: String(item.pallets || '0'),
+                    port: item.port,
+                    status: 'pending' as const, // Auto-set to pending for B2C imports
+                    task_count: String(item.task_count || '0'),
+                    pallets_dispatched: '0',
+                    labeler: '',
+                    documents_printed: false,
+                }))
+                .filter((row: any) => !rows.some(r => r.trip_number === row.trip_number))
+                .filter((row: any) => !importedRows.some(r => r.trip_number === row.trip_number))
+
+            if (newImports.length > 0) {
+                setImportedRows((prev) => [...prev, ...newImports])
+                onUnsavedChange?.(true)
+                alert(`Se encontraron ${newImports.length} nuevos viajes B2C para ${warehouse}`)
+            } else {
+                alert(`No se encontraron nuevos viajes B2C para ${warehouse} en el Sheet`)
+            }
+
+            setLastRefresh(new Date().toLocaleTimeString('es-AR'))
+        } catch (error: any) {
+            console.error('B2C Import Error:', error)
+            alert('Error al importar B2C: ' + error.message)
+        } finally {
+            setIsRefreshing(false)
+        }
+    }, [rows, importedRows, warehouse, currentUserId, onUnsavedChange])
+
+    const confirmImportedRow = useCallback(
+        async (localId: string) => {
+            const row = importedRows.find((r) => r._localId === localId)
+            if (!row) return
+
+            try {
+                const { _localId, _saved, _isNew, ...tripData } = row
+                await onSave({ ...tripData, trip_type: 'b2c', warehouse }, true)
+                setImportedRows((prev) => prev.filter((r) => r._localId !== localId))
+                onUnsavedChange?.(unsavedRows.length > 0 || importedRows.length > 1)
+            } catch (error) {
+                alert('Error al confirmar: ' + (error instanceof Error ? error.message : String(error)))
+            }
+        },
+        [importedRows, onSave, onUnsavedChange, unsavedRows.length]
+    )
+
+    const discardImportedRow = useCallback(
+        (localId: string) => {
+            setImportedRows((prev) => prev.filter((r) => r._localId !== localId))
+            onUnsavedChange?.(unsavedRows.length > 0 || importedRows.length > 1)
+        },
+        [importedRows.length, onUnsavedChange, unsavedRows.length]
+    )
 
     const removeRow = useCallback(
         async (localId: string) => {

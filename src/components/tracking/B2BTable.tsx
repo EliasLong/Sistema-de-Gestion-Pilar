@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import type { B2BTrip, TripStatus, SheetImportRow } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, RefreshCw, FileSpreadsheet, Lock, ArrowUp, Search, ChevronDown } from 'lucide-react'
-import { MOCK_CARRIERS_B2B, getOperatorsForContext, MOCK_SHEET_IMPORTS } from '@/lib/mock-tracking'
+import { MOCK_CARRIERS_B2B, getOperatorsForContext } from '@/lib/mock-tracking'
 import { useProfile } from '@/hooks/useProfile'
 
 // ============================================
@@ -119,83 +119,40 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     const unsavedRows = rows.filter((r) => !r._saved)
     const hasUnsaved = unsavedRows.length > 0 || importedRows.length > 0
 
-    // --- Refresh from Sheet (Real) ---
+    // --- Refresh from Sheet (Real via API) ---
     const handleRefreshFromSheet = useCallback(async () => {
         setIsRefreshing(true)
         try {
-            const SHEET_ID = '1QwWUe34Yn0BnTfb8WckxzDRmEKJfuATPse9g76VM3n8'
-            const GID = '0'
-            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&tq=&gid=${GID}`
+            const res = await fetch(`/api/tracking/import-sheet?warehouse=${warehouse}`)
+            if (!res.ok) throw new Error('Error en la API de importación')
             
-            const res = await fetch(url)
-            const text = await res.text()
-            // The response starts with "/*--WIZ_v1.0*/\ngoogle.visualization.Query.setResponse(" and ends with ");"
-            const jsonText = text.substring(text.indexOf('({') + 1, text.lastIndexOf('})') + 1)
-            const json = JSON.parse(jsonText)
-            
-            const table = json.table
-            const cols = table.cols
-            const rows_data = table.rows
+            const data = await res.json()
+            if (data.error) throw new Error(data.error)
 
-            // Mapping columns based on identified structure:
-            // A (0): fecha, B (1): transporte, F (5): metros (task_count), G (6): palletizado (pallets)
-            // J (9): deposito (PL2/PL3), M (12): numero de viaje, O (14): cliente, R (17): puerto
-            
-            const newImports = rows_data
-                .map((r: any) => {
-                    const v = (idx: number) => r.c[idx]?.v
-                    const fv = (idx: number) => r.c[idx]?.f || String(r.c[idx]?.v || '')
-                    
-                    const rawDate = v(0)
-                    let formattedDate = new Date().toISOString().split('T')[0]
-                    if (rawDate) {
-                        try {
-                            // If it's a date object from gviz
-                            const d = new Date(rawDate)
-                            if (!isNaN(d.getTime())) {
-                                formattedDate = d.toISOString().split('T')[0]
-                            }
-                        } catch (e) {
-                            // fallback to fv(0) if provided or current date
-                            const f = fv(0)
-                            if (f && f.includes('/')) {
-                                const parts = f.split('/')
-                                if (parts.length === 3) {
-                                    // Handle DD/MM/YYYY or MM/DD/YYYY? 
-                                    // Usually it's local. Let's try to be smart.
-                                    formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
-                                }
-                            }
-                        }
-                    }
-
-                    const tripNum = String(v(12) || '').trim()
-                    if (!tripNum) return null
-
-                    return {
-                        _localId: `sheet-${tripNum}-${Date.now()}`,
-                        _saved: false,
-                        _isNew: true,
-                        created_by: currentUserId,
-                        created_at: new Date().toISOString(),
-                        date: formattedDate,
-                        carrier: String(fv(1) || ''),
-                        vehicle_plate: '', 
-                        trip_number: tripNum,
-                        client: String(v(14) || ''),
-                        client_shift: '', // Missing in sheet
-                        task_count: String(v(5) || '0'),
-                        port: String(v(17) || ''),
-                        pallets: String(v(6) || '0'),
-                        operators: [],
-                        documents_printed: false,
-                        detail: '',
-                        comments: '',
-                        bulk_cargo: false,
-                        status: ''
-                    } as B2BRowDraft
-                })
-                .filter((row: any) => row !== null)
+            const newImports = data
+                .filter((item: any) => item.trip_type === 'b2b')
+                .map((item: any) => ({
+                    _localId: `sheet-${item.trip_number}-${Date.now()}`,
+                    _saved: false,
+                    _isNew: true,
+                    created_by: currentUserId,
+                    created_at: new Date().toISOString(),
+                    date: item.date,
+                    carrier: item.carrier,
+                    vehicle_plate: item.vehicle_plate,
+                    trip_number: item.trip_number,
+                    client: item.client,
+                    client_shift: item.client_shift,
+                    task_count: item.task_count,
+                    port: item.port,
+                    pallets: item.pallets,
+                    operators: [],
+                    documents_printed: false,
+                    detail: '',
+                    comments: item.comments,
+                    bulk_cargo: false,
+                    status: '' as const
+                }))
                 // Filter out already existing trip numbers
                 .filter((row: any) => !rows.some(r => r.trip_number === row.trip_number))
                 // Filter out already imported IDs
@@ -210,9 +167,9 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
             }
 
             setLastRefresh(new Date().toLocaleTimeString('es-AR'))
-        } catch (error) {
-            console.error('Error fetching Google Sheet:', error)
-            alert('Error al conectar con Google Sheets. Verificá que el archivo sea público.')
+        } catch (error: any) {
+            console.error('Error fetching Sheet via API:', error)
+            alert('Error al conectar con el servidor para la importación: ' + error.message)
         } finally {
             setIsRefreshing(false)
         }

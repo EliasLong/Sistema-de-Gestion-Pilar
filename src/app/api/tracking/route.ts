@@ -131,20 +131,25 @@ export async function DELETE(request: NextRequest) {
         const { searchParams } = new URL(request.url)
         const id = searchParams.get('id')
 
+        console.log('API: Attempting to delete trip with ID:', id)
+
         if (!id) {
             return NextResponse.json({ error: 'Missing row ID' }, { status: 400 })
         }
 
-        const { error } = await supabase
+        const { error, count } = await supabase
             .from('tracking_trips')
-            .delete()
+            .delete({ count: 'exact' })
             .eq('id', id)
 
         if (error) {
+            console.error('API: Supabase delete error:', error)
             throw error
         }
 
-        return NextResponse.json({ success: true })
+        console.log('API: Deletion successful, rows affected:', count)
+
+        return NextResponse.json({ success: true, deletedCount: count })
     } catch (error: any) {
         console.error('DELETE /api/tracking error:', error)
         return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })

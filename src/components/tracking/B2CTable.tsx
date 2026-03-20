@@ -133,14 +133,18 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
     const removeRow = useCallback(
         async (localId: string) => {
+            console.log('B2CTable: removeRow called for localId:', localId)
             const row = rows.find(r => r._localId === localId)
+            console.log('B2CTable: Found row:', row)
+
             if (row?._saved) {
                 const confirmed = window.confirm('¿Estás seguro de que deseás eliminar este viaje permanentemente?')
                 if (!confirmed) return
                 try {
+                    console.log('B2CTable: Calling onDelete for:', localId)
                     await onDelete(localId)
                 } catch (e) {
-                    console.error(e)
+                    console.error('B2CTable: Deletion failed:', e)
                     alert("Error al eliminar el viaje")
                     return
                 }

@@ -54,17 +54,20 @@ export function useTrackingTrips(warehouse?: Warehouse) {
     }
 
     const deleteTrip = async (id: string) => {
+        console.log('Hook: Requesting deletion for ID:', id)
         const res = await fetch(`/api/tracking?id=${id}`, {
             method: 'DELETE'
         })
         
+        const data = await res.json()
+        console.log('Hook: Deletion response:', data)
+
         if (!res.ok) {
-            const error = await res.json()
-            throw new Error(error.error || 'Error deleting trip')
+            throw new Error(data.error || 'Error deleting trip')
         }
         
         await fetchTrips()
-        return res.json()
+        return data
     }
 
     return { 

@@ -11,15 +11,18 @@ import { TRIP_STATUS_LABELS } from '@/types/tracking'
 import Link from 'next/link'
 
 export default function DeletedTripsPage() {
-    const { warehouse } = useParams() as { warehouse: string }
-    const { fetchTrips, deleteTrip } = useTrackingTrips(warehouse as any)
+    const params = useParams()
+    const warehouse = params?.warehouse as string | undefined
     const [deletedTrips, setDeletedTrips] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
     const loadDeleted = async () => {
         setIsLoading(true)
         try {
-            const res = await fetch(`/api/tracking?warehouse=${warehouse}&showDeleted=true`)
+            const url = warehouse 
+                ? `/api/tracking?warehouse=${warehouse}&showDeleted=true`
+                : `/api/tracking?showDeleted=true`
+            const res = await fetch(url)
             const data = await res.json()
             setDeletedTrips(data)
         } catch (error) {
@@ -73,14 +76,14 @@ export default function DeletedTripsPage() {
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Link href={`/tracking/${warehouse}`}>
+                    <Link href={warehouse ? `/tracking/${warehouse}` : '/tracking'}>
                         <Button variant="ghost" size="icon">
                             <ArrowLeft className="h-4 w-4" />
                         </Button>
                     </Link>
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">Papelera de Reciclaje</h1>
-                        <p className="text-muted-foreground">Administración de viajes borrados ({warehouse})</p>
+                        <p className="text-muted-foreground">Administración de viajes borrados {warehouse ? `(${warehouse})` : '(Todos)'}</p>
                     </div>
                 </div>
                 <Button variant="outline" size="sm" onClick={loadDeleted} disabled={isLoading}>
@@ -115,6 +118,7 @@ export default function DeletedTripsPage() {
                                         <th className="px-4 py-3">Viaje</th>
                                         <th className="px-4 py-3">Cliente</th>
                                         <th className="px-4 py-3">Borrado el</th>
+                                        <th className="px-4 py-3">Depósito</th>
                                         <th className="px-4 py-3 text-right">Acciones</th>
                                     </tr>
                                 </thead>
@@ -127,6 +131,9 @@ export default function DeletedTripsPage() {
                                             <td className="px-4 py-3">{trip.client || '—'}</td>
                                             <td className="px-4 py-3 text-xs text-muted-foreground">
                                                 {new Date(trip.updated_at).toLocaleString()}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <Badge variant="outline">{trip.warehouse}</Badge>
                                             </td>
                                             <td className="px-4 py-3 text-right space-x-2">
                                                 <Button 

@@ -59,7 +59,7 @@ function tripToRow(trip: B2CTrip): B2CRowDraft {
         _isNew: false,
         created_by: trip.created_by,
         created_at: trip.created_at,
-        date: trip.date,
+        date: trip.date ? trip.date.split('T')[0] : '',
         carrier: trip.carrier,
         trip_number: trip.trip_number,
         operators: [...trip.operators],

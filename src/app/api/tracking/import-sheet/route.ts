@@ -47,11 +47,13 @@ export async function GET(request: NextRequest) {
                     const dateStr = String(row[0]).replace(/^\uFEFF/, '').trim()
                     const parts = dateStr.split(/[\/\-]/)
                     if (parts.length === 3) {
+                        let year = parts[2]
+                        if (year.length === 2) year = `20${year}`
                         if (parts[0].length === 4) {
                             formattedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`
                         } else {
                             // Assuming DD-MM-YYYY
-                            formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
+                            formattedDate = `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
                         }
                     }
                 }

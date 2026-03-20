@@ -55,7 +55,8 @@ function tripToRow(trip: B2BTrip): B2BRowDraft {
     return {
         _localId: trip.id, _saved: true, _isNew: false,
         created_by: trip.created_by, created_at: trip.created_at,
-        date: trip.date, carrier: trip.carrier, vehicle_plate: trip.vehicle_plate,
+        date: trip.date ? trip.date.split('T')[0] : '',
+        carrier: trip.carrier, vehicle_plate: trip.vehicle_plate,
         trip_number: trip.trip_number, client: trip.client, client_shift: trip.client_shift,
         task_count: trip.task_count != null ? String(trip.task_count) : '', port: trip.port, pallets: trip.pallets != null ? String(trip.pallets) : '',
         operators: [...trip.operators], documents_printed: trip.documents_printed,

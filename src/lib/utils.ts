@@ -8,7 +8,9 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDate(dateStr: string): string {
     if (!dateStr) return '—'
     try {
-        const date = new Date(dateStr + 'T12:00:00') // Use 12:00 to avoid timezone offset issues
+        const hasTime = dateStr.includes('T')
+        const normalized = hasTime ? dateStr : `${dateStr}T12:00:00`
+        const date = new Date(normalized)
         if (isNaN(date.getTime())) return '—'
         return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
     } catch {

@@ -5,10 +5,12 @@ import { Bell, Search } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { useProfile } from '@/hooks/useProfile'
+import { useSearchStore } from '@/hooks/useSearchStore'
 
 export function Header() {
   const pathname = usePathname()
   const { profile } = useProfile()
+  const { searchTerm, setSearchTerm } = useSearchStore()
   
   const getPageTitle = () => {
     if (pathname === '/dashboard') return 'Dashboard'
@@ -29,6 +31,8 @@ export function Header() {
            <input 
              type="search" 
              placeholder="Buscar en el warehouse..." 
+             value={searchTerm}
+             onChange={(e) => setSearchTerm(e.target.value)}
              className="w-full rounded-md border border-input bg-background pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
            />
         </div>

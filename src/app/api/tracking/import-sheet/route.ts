@@ -32,9 +32,9 @@ export async function GET(request: NextRequest) {
         const header = rows[0]
         const dataRows = rows.slice(1)
 
-        // Calculate "last month onwards" date
-        const now = new Date()
-        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        // Calculate "last 48 hours" date
+        const last48h = new Date()
+        last48h.setHours(last48h.getHours() - 48)
         
         const mapped = dataRows
             .map(row => {
@@ -42,35 +42,50 @@ export async function GET(request: NextRequest) {
                 if (warehouse && deposito !== warehouse) return null
                 if (!row[12]) return null // No trip number
 
-                let tripDate: Date | null = null
                 let formattedDate = new Date().toISOString().split('T')[0]
                 if (row[0]) {
-                    const parts = row[0].split('/')
+                    const dateStr = String(row[0]).trim()
+                    const parts = dateStr.split(/[\/\-]/)
                     if (parts.length === 3) {
-                        formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
-                        tripDate = new Date(formattedDate)
+                        if (parts[0].length === 4) {
+                            formattedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`
+                        } else {
+                            // Assuming DD-MM-YYYY
+                            formattedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
+                        }
                     }
                 }
 
-                // Date filtering: skip if trip is older than start of last month
-                if (tripDate && tripDate < lastMonth) {
+                const tripDate = new Date(formattedDate + 'T12:00:00')
+
+                // Filter last 48 hours
+                if (tripDate < last48h) {
                     return null
                 }
 
                 // Classification: B2B vs B2C
                 const clientName = row[14] || ''
-                const tripType = clientName.toUpperCase().includes('B2C') ? 'b2c' : 'b2b'
+                const isB2C = clientName.toUpperCase().includes('B2C')
+                const tripType = isB2C ? 'b2c' : 'b2b'
+
+                // Specific mapping:
+                // For B2C: carrier="Flota Propia", retira=row[1], vehicle_plate=row[2] (Patente)
+                // For B2B: carrier=row[1], retira=row[1], vehicle_plate=row[2]
+                const carrier = isB2C ? 'Flota Propia' : row[1]
+                const retira = row[1]
+                const vehicle_plate = row[2]
 
                 return {
                     date: formattedDate,
-                    carrier: row[1],
-                    vehicle_plate: row[3],
+                    carrier,
+                    retira,
+                    vehicle_plate,
                     trip_number: row[12],
                     client: clientName,
-                    client_shift: row[15],
-                    task_count: row[5] || '0',
-                    port: row[17],
-                    pallets: row[6] || '0',
+                    client_shift: row[8],
+                    task_count: row[7] || '0',
+                    port: row[13],
+                    pallets: row[5] || '0',
                     comments: row[16] || '',
                     warehouse: deposito,
                     trip_type: tripType

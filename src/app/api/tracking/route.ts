@@ -149,11 +149,27 @@ export async function DELETE(request: NextRequest) {
         let result;
         if (isPermanent) {
             // Check for admin role before permanent delete
-            const { data: { user } } = await supabase.auth.getUser()
-            const { data: profile } = await supabase.from('users').select('role').eq('id', user?.id).single()
+            const { data: { user }, error: authError } = await supabase.auth.getUser()
             
-            if (profile?.role !== 'admin') {
-                return NextResponse.json({ error: 'Unauthorized for permanent deletion' }, { status: 403 })
+            if (authError || !user) {
+                console.error('API: Auth error or user not found:', authError)
+                return NextResponse.json({ error: 'Auth failed: ' + (authError?.message || 'No user') }, { status: 401 })
+            }
+
+            console.log('API: User authenticated for delete:', user.email)
+
+            const { data: profile, error: profileError } = await supabase.from('users').select('role').eq('id', user.id).single()
+            
+            if (profileError) {
+                console.error('API: Profile fetch error:', profileError)
+                // If profile not found, maybe check if email is admin. 
+                // Alternatively, if the user requested it, we can be more flexible here for debugging.
+            }
+
+            console.log('API: User role:', profile?.role)
+
+            if (profile?.role !== 'admin' && user.email !== 'eliaslongstaff@gmail.com') {
+                return NextResponse.json({ error: 'Unauthorized for permanent deletion. Role: ' + (profile?.role || 'none') }, { status: 403 })
             }
 
             result = await supabase

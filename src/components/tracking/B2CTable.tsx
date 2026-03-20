@@ -6,6 +6,7 @@ import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, Lock, Search, ChevronDown, RefreshCw, FileSpreadsheet } from 'lucide-react'
 import { MOCK_CARRIERS_B2C, getOperatorsForContext, MOCK_LABELERS } from '@/lib/mock-tracking'
 import { useProfile } from '@/hooks/useProfile'
+import { formatDate } from '@/lib/utils'
 
 export interface B2CRowDraft {
     _localId: string
@@ -24,6 +25,8 @@ export interface B2CRowDraft {
     pallets_dispatched: string
     labeler: string
     documents_printed: boolean
+    vehicle_plate?: string
+    retira?: string
 }
 
 function createEmptyB2CRow(userId: string): B2CRowDraft {
@@ -201,6 +204,37 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         [importedRows, onSave, onUnsavedChange, unsavedRows.length]
     )
 
+    const confirmAllImported = useCallback(async () => {
+        if (importedRows.length === 0) return
+        const confirmed = window.confirm(`¿Deseás confirmar los ${importedRows.length} viajes B2C importados?`)
+        if (!confirmed) return
+
+        setIsRefreshing(true)
+        try {
+            const batch = importedRows.map(row => {
+                const { _localId, _saved, _isNew, ...tripData } = row as any
+                return { 
+                    ...tripData, 
+                    trip_type: 'b2c', 
+                    warehouse,
+                    task_count: Number(tripData.task_count || 0),
+                    pallet_count: Number(tripData.pallet_count || 0),
+                    status: tripData.status || 'pending'
+                }
+            })
+            await onSaveBatch(batch, true)
+            setImportedRows([])
+            onUnsavedChange?.(unsavedRows.length > 0)
+            await onRefresh()
+            alert(`${batch.length} viajes B2C confirmados correctamente`)
+        } catch (e) {
+            console.error("Error confirming B2C batch", e)
+            alert("Error al confirmar lote B2C: " + (e instanceof Error ? e.message : String(e)))
+        } finally {
+            setIsRefreshing(false)
+        }
+    }, [importedRows, onSaveBatch, onRefresh, warehouse, unsavedRows.length, onUnsavedChange])
+
     const discardImportedRow = useCallback(
         (localId: string) => {
             setImportedRows((prev) => prev.filter((r) => r._localId !== localId))
@@ -329,6 +363,16 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                         <Plus className="h-4 w-4" />
                         Nueva Fila
                     </button>
+                    {importedRows.length === 0 && (
+                        <button
+                            onClick={handleRefreshFromSheet}
+                            disabled={isRefreshing}
+                            className="inline-flex items-center gap-2 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-600 hover:bg-emerald-500/20 transition-colors disabled:opacity-50"
+                        >
+                            <FileSpreadsheet className={`h-4 w-4 ${isRefreshing ? 'animate-bounce' : ''}`} />
+                            {isRefreshing ? 'Sincronizando...' : 'Refresco desde sheet'}
+                        </button>
+                    )}
                     {hasUnsaved && (
                         <button
                             onClick={saveAll}
@@ -339,13 +383,115 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                         </button>
                     )}
                 </div>
-                {hasUnsaved && (
-                    <span className="text-sm text-amber-400 flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-                        {unsavedRows.length} fila(s) sin guardar
-                    </span>
-                )}
+                <div className="text-right">
+                    {lastRefresh && (
+                        <div className="text-[10px] text-muted-foreground italic mb-1">
+                            Última sincronización: {lastRefresh}
+                        </div>
+                    )}
+                    {hasUnsaved && (
+                        <span className="text-sm text-amber-400 flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                            {unsavedRows.length} fila(s) sin guardar
+                        </span>
+                    )}
+                </div>
             </div>
+
+            {/* --- Sección de Viajes Importados (Pendientes de Confirmación) --- */}
+            {importedRows.length > 0 && (
+                <div className="mb-2 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2 text-emerald-700">
+                            <FileSpreadsheet className="h-5 w-5" />
+                            <h3 className="text-sm font-bold uppercase tracking-tight">Viajes encontrados en Google Sheet (B2C)</h3>
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200">
+                                {importedRows.length} por confirmar
+                            </span>
+                        </div>
+                        <button 
+                            onClick={handleRefreshFromSheet}
+                            disabled={isRefreshing}
+                            className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-50 flex items-center gap-1"
+                        >
+                            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            Actualizar
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2 mb-4">
+                        <button 
+                            onClick={confirmAllImported}
+                            disabled={isRefreshing}
+                            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-emerald-700 transition-all disabled:opacity-50"
+                        >
+                            <Check className="h-4 w-4" />
+                            Confirmar Todos los Viajes ({importedRows.length})
+                        </button>
+                        <button 
+                            onClick={() => { if(window.confirm('¿Descartar todos los viajes encontrados?')) setImportedRows([]); }}
+                            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all"
+                        >
+                            <X className="h-4 w-4" />
+                            Descartar Todo
+                        </button>
+                    </div>
+                    
+                    <div className="relative overflow-x-auto rounded-xl border border-emerald-200">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-emerald-500/10 text-emerald-800 uppercase text-[10px] font-bold">
+                                <tr>
+                                    <th className="px-4 py-3">Fecha</th>
+                                    <th className="px-4 py-3">Viaje</th>
+                                    <th className="px-4 py-3">Transporte</th>
+                                    <th className="px-4 py-3">Retira</th>
+                                    <th className="px-4 py-3">Patente</th>
+                                    <th className="px-4 py-3">Tareas</th>
+                                    <th className="px-4 py-3 text-center">Bultos</th>
+                                    <th className="px-4 py-3">Depósito</th>
+                                    <th className="px-4 py-3 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-emerald-100 bg-white">
+                                {importedRows.map((row) => (
+                                    <tr key={row._localId} className="hover:bg-emerald-50/50 transition-colors">
+                                        <td className="px-4 py-3 font-medium">{formatDate(row.date)}</td>
+                                        <td className="px-4 py-3 font-mono text-xs font-bold">{row.trip_number}</td>
+                                        <td className="px-4 py-3 text-emerald-700 font-semibold">{row.carrier}</td>
+                                        <td className="px-4 py-3">{row.retira || '—'}</td>
+                                        <td className="px-4 py-3 font-mono text-xs">{row.vehicle_plate || '—'}</td>
+                                        <td className="px-4 py-3">{row.task_count}</td>
+                                        <td className="px-4 py-3 text-center">{row.pallet_count}</td>
+                                        <td className="px-4 py-3">
+                                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                                {(row as any).warehouse || warehouse}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button 
+                                                    onClick={() => confirmImportedRow(row._localId)} 
+                                                    className="p-1.5 rounded-md bg-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all"
+                                                    title="Confirmar"
+                                                >
+                                                    <Check className="h-4 w-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => discardImportedRow(row._localId)} 
+                                                    className="p-1.5 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all"
+                                                    title="Descartar"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Table */}
             <div className="relative w-full overflow-visible rounded-lg border bg-white">
@@ -353,14 +499,15 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                     <thead className="bg-muted/50">
                         <tr className="border-b">
                             <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">Fecha</th>
-                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Transporte</th>
                             <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Viaje</th>
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Transporte</th>
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[120px]">Retira</th>
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">Patente</th>
                             <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Operario/os</th>
-                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap">Cant. Pallets</th>
-                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Puerto</th>
-                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap">Cant/Tareas</th>
+                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap text-xs">Pallets</th>
+                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap">Tareas</th>
                             <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Estado</th>
-                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap">Pallets Desp.</th>
+                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap text-xs leading-tight">Pallets<br/>Desp.</th>
                             <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Etiquetador</th>
                             <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap">Papeles</th>
                             <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap w-[80px]">Acciones</th>
@@ -402,6 +549,25 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
+                                    {/* Viaje */}
+                                    <td className="p-2 align-middle">
+                                        {editable ? (
+                                            <input
+                                                type="text"
+                                                value={row.trip_number}
+                                                onChange={(e) => {
+                                                    const val = e.target.value.replace(/\D/g, '').slice(0, 6)
+                                                    updateRow(row._localId, 'trip_number', val)
+                                                }}
+                                                placeholder="000000"
+                                                maxLength={6}
+                                                className="w-[80px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <span className="text-sm font-mono px-2">{row.trip_number}</span>
+                                        )}
+                                    </td>
+
                                     {/* Transporte */}
                                     <td className="p-2 align-middle">
                                         {editable ? (
@@ -420,23 +586,18 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Viaje */}
+                                    {/* Retira */}
                                     <td className="p-2 align-middle">
-                                        {editable ? (
-                                            <input
-                                                type="text"
-                                                value={row.trip_number}
-                                                onChange={(e) => {
-                                                    const val = e.target.value.replace(/\D/g, '').slice(0, 6)
-                                                    updateRow(row._localId, 'trip_number', val)
-                                                }}
-                                                placeholder="000000"
-                                                maxLength={6}
-                                                className="w-[80px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-                                            />
-                                        ) : (
-                                            <span className="text-sm font-mono px-2">{row.trip_number}</span>
-                                        )}
+                                        <div className="text-xs font-medium px-2 text-muted-foreground truncate max-w-[120px]" title={row.retira}>
+                                            {row.retira || '—'}
+                                        </div>
+                                    </td>
+
+                                    {/* Patente */}
+                                    <td className="p-2 align-middle">
+                                        <div className="text-xs font-mono px-2 text-muted-foreground">
+                                            {row.vehicle_plate || '—'}
+                                        </div>
                                     </td>
 
                                     {/* Operarios */}
@@ -458,7 +619,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Cant. Pallets */}
+                                    {/* Pallets */}
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
                                             <input
@@ -473,21 +634,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Puerto */}
-                                    <td className="p-2 align-middle">
-                                        {editable ? (
-                                            <input
-                                                type="text" value={row.port}
-                                                onChange={(e) => updateRow(row._localId, 'port', e.target.value)}
-                                                placeholder="Ej: A3"
-                                                className="w-[70px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-                                            />
-                                        ) : (
-                                            <span className="text-sm font-mono px-2">{row.port}</span>
-                                        )}
-                                    </td>
-
-                                    {/* Cant/Tareas */}
+                                    {/* Tareas */}
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
                                             <input
@@ -522,7 +669,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Pallets Despachados */}
+                                    {/* Pallets Desp. */}
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
                                             <input
@@ -605,7 +752,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                         {rows.length === 0 && (
                             <tr>
-                                <td colSpan={12} className="py-12 text-center text-muted-foreground">
+                                <td colSpan={13} className="py-12 text-center text-muted-foreground">
                                     <p className="text-lg font-medium">Sin viajes B2C registrados</p>
                                     <p className="text-sm mt-1">Hacé clic en &quot;Nueva Fila&quot; para comenzar.</p>
                                 </td>
@@ -619,11 +766,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 }
 
 // --- Helpers ---
-
-function formatDate(dateStr: string): string {
-    const date = new Date(dateStr + 'T00:00:00')
-    return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
 
 // --- Multi-select de operarios ---
 

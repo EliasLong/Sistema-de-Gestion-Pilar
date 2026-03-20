@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { B2CTable } from './B2CTable'
 import { B2BTable } from './B2BTable'
+import { useProfile } from '@/hooks/useProfile'
+import { useSearchStore } from '@/hooks/useSearchStore'
+import { formatDate } from '@/lib/utils'
 import type { B2CTrip, B2BTrip, Warehouse } from '@/types/tracking'
 
 interface TrackingTabsProps {
@@ -24,6 +27,8 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatc
     const [hasUnsavedB2C, setHasUnsavedB2C] = useState(false)
     const [hasUnsavedB2B, setHasUnsavedB2B] = useState(false)
     const router = useRouter()
+    const { profile } = useProfile()
+    const { searchTerm } = useSearchStore()
 
     const hasAnyUnsaved = hasUnsavedB2C || hasUnsavedB2B
 
@@ -50,14 +55,42 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatc
         }
         router.push('/tracking')
     }, [hasAnyUnsaved, router])
-
     const handleTabSwitch = useCallback(
         (tab: TabValue) => {
-            // Permitir cambio de tab sin perder datos (ambas tablas mantienen su estado)
             setActiveTab(tab)
         },
         []
     )
+
+    const filteredB2C = b2cTrips.filter(trip => {
+        if (!searchTerm) return true
+        const search = searchTerm.toLowerCase()
+        return (
+            trip.trip_number.toLowerCase().includes(search) ||
+            trip.carrier.toLowerCase().includes(search) ||
+            (trip.retira || '').toLowerCase().includes(search) ||
+            (trip.vehicle_plate || '').toLowerCase().includes(search) ||
+            trip.labeler.toLowerCase().includes(search) ||
+            formatDate(trip.date).toLowerCase().includes(search) ||
+            trip.operators.some(op => op.toLowerCase().includes(search)) ||
+            trip.port.toLowerCase().includes(search)
+        )
+    })
+
+    const filteredB2B = b2bTrips.filter(trip => {
+        if (!searchTerm) return true
+        const search = searchTerm.toLowerCase()
+        return (
+            trip.trip_number.toLowerCase().includes(search) ||
+            trip.carrier.toLowerCase().includes(search) ||
+            (trip.retira || '').toLowerCase().includes(search) ||
+            (trip.vehicle_plate || '').toLowerCase().includes(search) ||
+            trip.client.toLowerCase().includes(search) ||
+            formatDate(trip.date).toLowerCase().includes(search) ||
+            trip.operators.some(op => op.toLowerCase().includes(search)) ||
+            trip.port.toLowerCase().includes(search)
+        )
+    })
 
     return (
         <div className="flex flex-col gap-6">
@@ -73,7 +106,7 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatc
                     </button>
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">
-                            Tracking — {warehouse}
+                            {warehouse} —&gt; {profile?.full_name || 'Cargando...'}
                         </h1>
                         <p className="text-sm text-muted-foreground">
                             Registro de movimientos de viajes
@@ -130,10 +163,10 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatc
             {/* Content — ambas tablas siempre montadas para no perder estado */}
             <div>
                 <div className={activeTab === 'b2c' ? 'block' : 'hidden'}>
-                    <B2CTable trips={b2cTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2C} onSave={onSave} onSaveBatch={onSaveBatch} onDelete={onDelete} onRefresh={onRefresh} />
+                    <B2CTable trips={filteredB2C} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2C} onSave={onSave} onSaveBatch={onSaveBatch} onDelete={onDelete} onRefresh={onRefresh} />
                 </div>
                 <div className={activeTab === 'b2b' ? 'block' : 'hidden'}>
-                    <B2BTable trips={b2bTrips} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2B} onSave={onSave} onSaveBatch={onSaveBatch} onDelete={onDelete} onRefresh={onRefresh} />
+                    <B2BTable trips={filteredB2B} warehouse={warehouse} onUnsavedChange={setHasUnsavedB2B} onSave={onSave} onSaveBatch={onSaveBatch} onDelete={onDelete} onRefresh={onRefresh} />
                 </div>
             </div>
         </div>

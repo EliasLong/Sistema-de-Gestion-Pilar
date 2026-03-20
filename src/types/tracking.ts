@@ -59,6 +59,8 @@ export interface B2CTrip extends TrackingTripBase {
     pallet_count: number
     pallets_dispatched: number
     labeler: string
+    vehicle_plate?: string
+    retira?: string
 }
 
 /** Viaje B2B */
@@ -71,6 +73,7 @@ export interface B2BTrip extends TrackingTripBase {
     detail: string
     comments: string
     bulk_cargo: boolean
+    retira?: string
 }
 
 export type TrackingTrip = B2CTrip | B2BTrip
@@ -95,6 +98,7 @@ export interface SheetImportRow {
     detail: string
     comments: string
     bulk_cargo: boolean
+    retira?: string
 }
 
 // ============================================

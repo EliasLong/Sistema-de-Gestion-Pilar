@@ -142,6 +142,84 @@ export default function ConfiguracionPage() {
                 </div>
                 <p className="text-xs text-white/40">Guarda la lista de opciones para que los usuarios las elijan al cargar un envío.</p>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="operators">Operarios Disponibles</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    id="operators" 
+                    value={getValue('allowed_operators', []).join?.(", ") || getValue('allowed_operators', [])} 
+                    onChange={(e) => {
+                      const arr = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                      handleLocalChange('allowed_operators', arr)
+                    }}
+                    className="bg-white/5 border-white/10 text-white focus-visible:ring-[#00B4B4]" 
+                    placeholder="Jonatan Flores, Dario Seta, Luciano Bullon..."
+                  />
+                  <Button 
+                    onClick={() => handleSave('allowed_operators')}
+                    disabled={savingKey === 'allowed_operators'}
+                    variant="outline" 
+                    className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 border-emerald-500/20 whitespace-nowrap"
+                  >
+                    {savingKey === 'allowed_operators' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Guardar
+                  </Button>
+                </div>
+                <p className="text-xs text-white/40">Lista de nombres de operarios que aparecen en el selector de las tablas de tracking.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="statuses">Estados de Viaje Permitidos</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    id="statuses" 
+                    value={getValue('allowed_statuses', []).join?.(", ") || getValue('allowed_statuses', [])} 
+                    onChange={(e) => {
+                      const arr = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                      handleLocalChange('allowed_statuses', arr)
+                    }}
+                    className="bg-white/5 border-white/10 text-white focus-visible:ring-[#00B4B4]" 
+                    placeholder="Liberado, Pendiente, Pickeando, FAC..."
+                  />
+                  <Button 
+                    onClick={() => handleSave('allowed_statuses')}
+                    disabled={savingKey === 'allowed_statuses'}
+                    variant="outline" 
+                    className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 border-emerald-500/20 whitespace-nowrap"
+                  >
+                    {savingKey === 'allowed_statuses' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Guardar
+                  </Button>
+                </div>
+                <p className="text-xs text-white/40">Estados disponibles en los dropdowns de estado de las tablas de tracking.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="labelers">Etiquetadores Disponibles</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    id="labelers" 
+                    value={getValue('allowed_labelers', []).join?.(", ") || getValue('allowed_labelers', [])} 
+                    onChange={(e) => {
+                      const arr = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                      handleLocalChange('allowed_labelers', arr)
+                    }}
+                    className="bg-white/5 border-white/10 text-white focus-visible:ring-[#00B4B4]" 
+                    placeholder="Ana Torres, María Ruiz, Laura Paz..."
+                  />
+                  <Button 
+                    onClick={() => handleSave('allowed_labelers')}
+                    disabled={savingKey === 'allowed_labelers'}
+                    variant="outline" 
+                    className="bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 border-emerald-500/20 whitespace-nowrap"
+                  >
+                    {savingKey === 'allowed_labelers' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Guardar
+                  </Button>
+                </div>
+                <p className="text-xs text-white/40">Lista de etiquetadores que aparecen en el selector de la tabla B2C.</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

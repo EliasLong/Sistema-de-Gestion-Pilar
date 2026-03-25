@@ -191,6 +191,15 @@ export async function DELETE(request: NextRequest) {
                     .eq('id', id)
             }
         } else {
+            // Soft delete
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) {
+                return NextResponse.json({ error: 'Unauthorized: No session' }, { status: 401 })
+            }
+
+            // For now, allow all authenticated users to soft-delete (as per user request for flexibility)
+            // In the future, this could use hasPermission(role, 'trips:delete')
+            
             result = await supabase
                 .from('tracking_trips')
                 .update({ status: 'deleted', updated_at: new Date().toISOString() })

@@ -67,7 +67,7 @@ export const navigation: NavItem[] = [
     title: 'Configuración',
     href: '/configuracion',
     icon: Settings,
-    roles: ['manager', 'admin'],
+    roles: ['operative', 'manager', 'admin'],
   },
   {
     title: 'Usuarios',

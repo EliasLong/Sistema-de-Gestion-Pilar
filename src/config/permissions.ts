@@ -7,11 +7,11 @@ export const PERMISSIONS = {
   
   // Tracking/Trips
   'trips:view': ['operative', 'supervisor', 'manager', 'admin'],
-  'trips:create': ['supervisor', 'manager', 'admin'],
-  'trips:edit': ['supervisor', 'manager', 'admin'],
-  'trips:delete': ['manager', 'admin'],
-  'trips:change_status': ['supervisor', 'manager', 'admin'],
-  'trips:export': ['supervisor', 'manager', 'admin'],
+  'trips:create': ['operative', 'supervisor', 'manager', 'admin'],
+  'trips:edit': ['operative', 'supervisor', 'manager', 'admin'],
+  'trips:delete': ['operative', 'supervisor', 'manager', 'admin'],
+  'trips:change_status': ['operative', 'supervisor', 'manager', 'admin'],
+  'trips:export': ['operative', 'supervisor', 'manager', 'admin'],
   
   // Claims
   'claims:view': ['operative', 'supervisor', 'manager', 'admin'],

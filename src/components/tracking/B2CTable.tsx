@@ -452,7 +452,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                     <th className="px-4 py-3">Transporte</th>
                                     <th className="px-4 py-3">Retira</th>
                                     <th className="px-4 py-3">Patente</th>
-                                    <th className="px-4 py-3">Tareas</th>
+                                    <th className="px-4 py-3">Bultos</th>
                                     <th className="px-4 py-3 text-center">Bultos</th>
                                     <th className="px-4 py-3">Depósito</th>
                                     <th className="px-4 py-3 text-right">Acciones</th>
@@ -511,11 +511,11 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                             <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">Patente</th>
                             <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Operario/os</th>
                             <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap text-xs">Pallets</th>
-                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap">Tareas</th>
+                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap">Bultos</th>
                             <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Estado</th>
                             <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap text-xs leading-tight">Pallets<br/>Desp.</th>
                             <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Etiquetador</th>
-                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap">Papeles</th>
+
                             <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap w-[80px]">Acciones</th>
                         </tr>
                     </thead>
@@ -660,7 +660,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Tareas */}
+                                    {/* Bultos */}
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
                                             <input
@@ -727,24 +727,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Papeles */}
-                                    <td className="p-2 align-middle text-center">
-                                        {editable ? (
-                                            <button
-                                                onClick={() => updateRow(row._localId, 'documents_printed', !row.documents_printed)}
-                                                className={`mx-auto flex h-7 w-7 items-center justify-center rounded-md border transition-colors ${row.documents_printed
-                                                        ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-                                                        : 'bg-transparent border-input text-muted-foreground hover:text-foreground'
-                                                    }`}
-                                            >
-                                                {row.documents_printed ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-                                            </button>
-                                        ) : (
-                                            row.documents_printed
-                                                ? <Check className="h-4 w-4 text-emerald-400 mx-auto" />
-                                                : <X className="h-4 w-4 text-red-400 mx-auto" />
-                                        )}
-                                    </td>
+
 
                                     {/* Acciones */}
                                     <td className="p-2 align-middle">
@@ -778,7 +761,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                         {rows.length === 0 && (
                             <tr>
-                                <td colSpan={13} className="py-12 text-center text-muted-foreground">
+                                <td colSpan={12} className="py-12 text-center text-muted-foreground">
                                     <p className="text-lg font-medium">Sin viajes B2C registrados</p>
                                     <p className="text-sm mt-1">Hacé clic en &quot;Nueva Fila&quot; para comenzar.</p>
                                 </td>

@@ -474,7 +474,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                     <th className="h-10 px-3 text-left text-xs font-semibold text-blue-300 whitespace-nowrap">Depósito</th>
                                     <th className="h-10 px-3 text-left text-xs font-semibold text-blue-300 whitespace-nowrap">Cliente</th>
                                     <th className="h-10 px-3 text-left text-xs font-semibold text-blue-300 whitespace-nowrap">Turno</th>
-                                    <th className="h-10 px-3 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Tareas</th>
+                                    <th className="h-10 px-3 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Bultos</th>
                                     <th className="h-10 px-3 text-left text-xs font-semibold text-blue-300 whitespace-nowrap">Puerto</th>
                                     <th className="h-10 px-3 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Pallets</th>
                                     <th className="h-10 px-3 text-left text-xs font-semibold text-blue-300 whitespace-nowrap">Operarios</th>
@@ -544,11 +544,11 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                             <th className="h-11 px-3 text-left font-semibold text-muted-foreground whitespace-nowrap">Viaje</th>
                             <th className="h-11 px-3 text-left font-semibold text-muted-foreground whitespace-nowrap">Cliente</th>
                             <th className="h-11 px-3 text-left font-semibold text-muted-foreground whitespace-nowrap">Turno</th>
-                            <th className="h-11 px-3 text-center font-semibold text-muted-foreground whitespace-nowrap">Tareas</th>
+                            <th className="h-11 px-3 text-center font-semibold text-muted-foreground whitespace-nowrap">Bultos</th>
                             <th className="h-11 px-3 text-left font-semibold text-muted-foreground whitespace-nowrap">Puerto</th>
                             <th className="h-11 px-3 text-center font-semibold text-muted-foreground whitespace-nowrap">Pallets</th>
                             <th className="h-11 px-3 text-left font-semibold text-muted-foreground whitespace-nowrap">Operarios</th>
-                            <th className="h-11 px-3 text-center font-semibold text-muted-foreground whitespace-nowrap">Papeles</th>
+
                             <th className="h-11 px-3 text-left font-semibold text-muted-foreground whitespace-nowrap">Detalle</th>
                             <th className="h-11 px-3 text-left font-semibold text-muted-foreground whitespace-nowrap">Comentarios</th>
                             <th className="h-11 px-3 text-center font-semibold text-muted-foreground whitespace-nowrap">Granel</th>
@@ -591,7 +591,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                     <td className="p-2">{editable ? <input type="text" value={row.port} onChange={(e) => updateRow(row._localId, 'port', e.target.value)} placeholder="Puerto" className="w-[70px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.port}</span>}</td>
                                     <td className="p-2 text-center">{editable ? <input type="text" value={row.pallets} onChange={(e) => updateRow(row._localId, 'pallets', e.target.value.replace(/\D/g, '').slice(0, 2))} maxLength={2} className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block" /> : <span className="text-sm font-semibold">{row.pallets}</span>}</td>
                                     <td className="p-2">{editable ? <OperatorMultiSelect selected={row.operators} warehouse={warehouse} onToggle={(op) => toggleOperator(row._localId, op, false)} /> : <div className="flex flex-wrap gap-1">{row.operators.map((op) => <span key={op} className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium">{op.split(' ')[0]}</span>)}</div>}</td>
-                                    <td className="p-2 text-center">{editable ? <button onClick={() => updateRow(row._localId, 'documents_printed', !row.documents_printed)} className={`mx-auto flex h-7 w-7 items-center justify-center rounded-md border transition-colors ${row.documents_printed ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-transparent border-input text-muted-foreground hover:text-foreground'}`}>{row.documents_printed ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}</button> : row.documents_printed ? <Check className="h-4 w-4 text-emerald-400 mx-auto" /> : <X className="h-4 w-4 text-red-400 mx-auto" />}</td>
+
                                     <td className="p-2">{editable ? <input type="text" value={row.detail} onChange={(e) => updateRow(row._localId, 'detail', e.target.value)} placeholder="Detalle..." className="w-[130px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm truncate max-w-[130px] block" title={row.detail}>{row.detail || '—'}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.comments} onChange={(e) => updateRow(row._localId, 'comments', e.target.value)} placeholder="Comentarios..." className="w-[130px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm truncate max-w-[130px] block" title={row.comments}>{row.comments || '—'}</span>}</td>
                                     <td className="p-2 text-center">{editable ? <button onClick={() => updateRow(row._localId, 'bulk_cargo', !row.bulk_cargo)} className={`mx-auto flex h-7 w-7 items-center justify-center rounded-md border transition-colors ${row.bulk_cargo ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-transparent border-input text-muted-foreground'}`}>{row.bulk_cargo ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}</button> : row.bulk_cargo ? <Check className="h-4 w-4 text-emerald-400 mx-auto" /> : <X className="h-4 w-4 text-muted-foreground mx-auto" />}</td>
@@ -611,7 +611,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                         {rows.length === 0 && (
                             <tr>
-                                <td colSpan={17} className="py-12 text-center text-muted-foreground">
+                                <td colSpan={16} className="py-12 text-center text-muted-foreground">
                                     <p className="text-lg font-medium">Sin viajes B2B registrados</p>
                                     <p className="text-sm mt-1">Hacé clic en &quot;Nueva Fila&quot; o &quot;Refrescar desde Sheet&quot;.</p>
                                 </td>

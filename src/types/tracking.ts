@@ -105,21 +105,12 @@ export interface SheetImportRow {
 // Permisos de edición
 // ============================================
 
-const EDIT_WINDOW_HOURS = 168 // 1 semana
-
 export function canEditRow(
     rowCreatedAt: string,
     rowCreatedBy: string,
     currentUserId: string,
     currentUserRole: 'operative' | 'supervisor' | 'manager' | 'admin'
 ): boolean {
-    // Admin puede editar siempre
-    if (currentUserRole === 'admin') return true
-
-    // Verificar ventana de tiempo (7 dias) para operarios y resto de perfiles
-    const createdAt = new Date(rowCreatedAt)
-    const now = new Date()
-    const hoursDiff = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60)
-
-    return hoursDiff <= EDIT_WINDOW_HOURS
+    // Se permite editar siempre, quitamos la restricción de 7 días (168hs)
+    return true
 }

@@ -1,0 +1,45 @@
+[33md2fbbf2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: agregar roles, permisos y componentes de auth
+[33mcfb8812[m Fix: Enable date editing for existing rows and improve date formatting resilience
+[33m9c63d5b[m Fix: Robust date handling for Sheet Import and manual entries
+[33mc26c7d2[m Fix: Header capitalization (Pl2 -> PL2) and data persistence for Retira/Patente columns
+[33mb9e06d5[m Fix: encabezado, persistencia de borrado y funcionalidad de vaciar papelera
+[33m88aeaea[m UI: Refinar flecha de encabezado y hacer editables las columnas Retira y Patente
+[33mc172de9[m Add: SQL migration for tracking_trips table columns
+[33m6e37b7b[m Fix: Correccion de indices de columnas, manejo de BOM y mapeo de B2C en importacion de sheet
+[33mf7034d1[m Mejoras en tracking, búsqueda global y corrección de fechas
+[33m167b3f8[m feat(tracking): enhance sheet import with B2C/B2B detection and date filter
+[33md1df8f0[m feat(b2b): connect real google sheet and filter by warehouse
+[33m123af27[m fix(borrado): handle global view and add warehouse badge
+[33m4fdcd5c[m fix(ui): update deletion alerts to reflect soft-delete
+[33mab09e53[m feat(tracking): implement soft-delete and borrado module
+[33m5da1479[m fix(tracking): use official logo and allow operator deletion with alerts
+[33m40668d8[m fix(tracking): fix logo and add deletion debug logs
+[33m5dd8e27[m feat(sidebar): add and style company logo
+[33mec531b4[m feat(tracking): implement permanent row deletion in backend and frontend
+[33mefa34db[m feat(tracking): enhance b2b/b2c validations and correct admin profile role
+[33m7c3e77b[m Añadidos botones save por fila y detección de roles admin via Supabase
+[33mf6208d2[m fix: correcion del servidor web de perfiles
+[33md10e371[m feat: integracion de base de datos Supabase para tracking_trips
+[33m5ea0d54[m fix: separar cliente browser y server de Supabase
+[33m7041a8e[m chore: force clean redeploy
+[33m437e740[m chore: force redeploy
+[33m5ba1bf5[m chore: trigger Vercel redeploy
+[33ma64f693[m feat: add Supabase auth with Google OAuth login
+[33m22157f9[m fix: corregir error de tipos en route.ts
+[33mfa5e4a4[m feat: convert operator selection to single-select and auto-close dropdown
+[33m7979e34[m ui: maximize dashboard area and perfect operator dropdown styling
+[33m49805d2[m ui: standardize operator dropdown and expand dashboard layout
+[33m3c6dffd[m feat: make operator dropdown searchable and improve UI aesthetics
+[33m1ea20bf[m Refactor: Implement shift-aware operator selection with warehouse filtering
+[33m2ee0eaa[m data: clear all mock trip data for real testing
+[33md4897cc[m feat: redesign UI with Slate/Blue theme and black dropdown text
+[33mbd262d0[m style: add min-w-max to enable responsive horizontal scrolling on tracking tables
+[33m9ad8ede[m feat: add unique real transport categories for B2B tracking
+[33m22475ac[m feat: split transportation carriers into B2B and B2C specific lists
+[33meaee172[m feat: add real transport categories to tracking module
+[33m71677a8[m feat: add new rows at the top in tracking tables
+[33mb907e56[m fix: TypeScript build error in B2CTable.tsx
+[33m8d01046[m fix: TypeScript build errors and add error.tsx
+[33mb050623[m chore: protect MCP config files with tokens in .gitignore
+[33m03cdde0[m feat: mover proyecto a raiz del repo
+[33m0eb84fd[m Initial commit

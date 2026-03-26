@@ -3,10 +3,70 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { B2CTrip, TripStatus } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
-import { Check, X, Plus, Save, Trash2, Lock, Search, ChevronDown, RefreshCw, FileSpreadsheet } from 'lucide-react'
+import { Check, X, Plus, Save, Trash2, Lock, Search, ChevronDown, RefreshCw, FileSpreadsheet, HelpCircle } from 'lucide-react'
 import { MOCK_CARRIERS_B2C, getOperatorsForContext, MOCK_LABELERS } from '@/lib/mock-tracking'
 import { useProfile } from '@/hooks/useProfile'
 import { formatDate } from '@/lib/utils'
+
+// Tooltips centralizados
+const TOOLTIPS = {
+    fecha: 'Fecha de preparación del viaje',
+    viaje: 'Número identificador del viaje',
+    transporte: 'Operador logístico que retira',
+    retira: 'Solo Flota propia',
+    patente: 'Patente del vehículo',
+    operarios: 'Operario que preparó el viaje',
+    pallets: 'Pallets utilizados en la preparación del viaje',
+    bultos: 'Cantidad de bultos/cajas',
+    estado: 'Estado actual del viaje',
+    pallets_despachados: 'Pallets ya despachados',
+    etiquetador: 'Persona que etiqueta los envíos',
+    acciones: 'Opciones: editar, eliminar, etc.',
+}
+
+// Componente de encabezado con tooltip
+function ColumnHeader({ label, tooltipKey }: { label: string; tooltipKey: keyof typeof TOOLTIPS }) {
+    const [show, setShow] = useState(false)
+    const tooltip = TOOLTIPS[tooltipKey]
+
+    return (
+        <div
+            style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'help',
+                position: 'relative'
+            }}
+            onMouseEnter={() => setShow(true)}
+            onMouseLeave={() => setShow(false)}
+        >
+            <span>{label}</span>
+            <HelpCircle size={14} color="#94a3b8" style={{ flexShrink: 0 }} />
+            {show && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        bottom: 'calc(100% + 6px)',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        backgroundColor: '#1e293b',
+                        color: 'white',
+                        padding: '6px 8px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        whiteSpace: 'nowrap',
+                        zIndex: 1000,
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                        pointerEvents: 'none'
+                    }}
+                >
+                    {tooltip}
+                </div>
+            )}
+        </div>
+    )
+}
 
 export interface B2CRowDraft {
     _localId: string
@@ -141,13 +201,12 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         onUnsavedChange?.(true)
     }, [onUnsavedChange, currentUserId])
 
-    // --- Refresh from Sheet ---
     const handleRefreshFromSheet = useCallback(async () => {
         setIsRefreshing(true)
         try {
             const res = await fetch(`/api/tracking/import-sheet?warehouse=${warehouse}`)
             if (!res.ok) throw new Error('Error en la API de importación')
-            
+
             const data = await res.json()
             if (data.error) throw new Error(data.error)
 
@@ -219,9 +278,9 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         try {
             const batch = importedRows.map(row => {
                 const { _localId, _saved, _isNew, ...tripData } = row as any
-                return { 
-                    ...tripData, 
-                    trip_type: 'b2c', 
+                return {
+                    ...tripData,
+                    trip_type: 'b2c',
                     warehouse,
                     task_count: Number(tripData.task_count || 0),
                     pallet_count: Number(tripData.pallet_count || 0),
@@ -284,7 +343,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
             if (!row) return
 
             try {
-                // Remove local draft properties
                 const { _localId, _saved, _isNew, ...payload } = row as any
                 if (!payload.task_count) payload.task_count = 0; else payload.task_count = Number(payload.task_count);
                 if (!payload.pallet_count) payload.pallet_count = 0; else payload.pallet_count = Number(payload.pallet_count);
@@ -292,7 +350,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 if (!payload.status) payload.status = 'pending';
 
                 await onSave({ ...payload, trip_type: 'b2c', warehouse }, row._isNew)
-                
+
                 setRows((prev) => {
                     const next = prev.map((r) => {
                         if (r._localId !== localId) return r
@@ -324,7 +382,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                 return onSave({ ...payload, trip_type: 'b2c', warehouse }, row._isNew)
             }))
-            
+
             setRows((prev) => {
                 const next = prev.map((row) => {
                     if (row._saved) return row
@@ -346,7 +404,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 const next = prev.map((row) => {
                     if (row._localId !== localId) return row
                     const hasOp = row.operators.includes(operator)
-                    // Selección única: si ya estaba, se quita; si no, reemplaza
                     const newOps = hasOp ? [] : [operator]
                     return { ...row, operators: newOps, _saved: false }
                 })
@@ -404,7 +461,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 </div>
             </div>
 
-            {/* --- Sección de Viajes Importados (Pendientes de Confirmación) --- */}
             {importedRows.length > 0 && (
                 <div className="mb-2 p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
                     <div className="flex items-center justify-between mb-4">
@@ -415,7 +471,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                 {importedRows.length} por confirmar
                             </span>
                         </div>
-                        <button 
+                        <button
                             onClick={handleRefreshFromSheet}
                             disabled={isRefreshing}
                             className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 disabled:opacity-50 flex items-center gap-1"
@@ -426,7 +482,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                     </div>
 
                     <div className="flex gap-2 mb-4">
-                        <button 
+                        <button
                             onClick={confirmAllImported}
                             disabled={isRefreshing}
                             className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-emerald-700 transition-all disabled:opacity-50"
@@ -434,15 +490,15 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                             <Check className="h-4 w-4" />
                             Confirmar Todos los Viajes ({importedRows.length})
                         </button>
-                        <button 
-                            onClick={() => { if(window.confirm('¿Descartar todos los viajes encontrados?')) setImportedRows([]); }}
+                        <button
+                            onClick={() => { if (window.confirm('¿Descartar todos los viajes encontrados?')) setImportedRows([]); }}
                             className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all"
                         >
                             <X className="h-4 w-4" />
                             Descartar Todo
                         </button>
                     </div>
-                    
+
                     <div className="relative overflow-x-auto rounded-xl border border-emerald-200">
                         <table className="w-full text-sm text-left">
                             <thead className="bg-emerald-500/10 text-emerald-800 uppercase text-[10px] font-bold">
@@ -475,15 +531,15 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button 
-                                                    onClick={() => confirmImportedRow(row._localId)} 
+                                                <button
+                                                    onClick={() => confirmImportedRow(row._localId)}
                                                     className="p-1.5 rounded-md bg-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all"
                                                     title="Confirmar"
                                                 >
                                                     <Check className="h-4 w-4" />
                                                 </button>
-                                                <button 
-                                                    onClick={() => discardImportedRow(row._localId)} 
+                                                <button
+                                                    onClick={() => discardImportedRow(row._localId)}
                                                     className="p-1.5 rounded-md hover:bg-red-50 text-slate-400 hover:text-red-600 transition-all"
                                                     title="Descartar"
                                                 >
@@ -499,24 +555,57 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 </div>
             )}
 
-            {/* Table */}
             <div className="relative w-full overflow-visible rounded-lg border bg-white">
                 <table className="w-full min-w-max caption-bottom text-sm">
                     <thead className="bg-muted/50">
                         <tr className="border-b">
-                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">Fecha</th>
-                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Viaje</th>
-                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Transporte</th>
-                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[120px]">Retira</th>
-                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">Patente</th>
-                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Operario/os</th>
-                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap text-xs">Pallets</th>
-                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap">Bultos</th>
-                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Estado</th>
-                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap text-xs leading-tight">Pallets<br/>Desp.</th>
-                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">Etiquetador</th>
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">
+                                <ColumnHeader label="Fecha" tooltipKey="fecha" />
+                            </th>
 
-                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap w-[80px]">Acciones</th>
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">
+                                <ColumnHeader label="Viaje" tooltipKey="viaje" />
+                            </th>
+
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">
+                                <ColumnHeader label="Transporte" tooltipKey="transporte" />
+                            </th>
+
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[120px]">
+                                <ColumnHeader label="Retira" tooltipKey="retira" />
+                            </th>
+
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">
+                                <ColumnHeader label="Patente" tooltipKey="patente" />
+                            </th>
+
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">
+                                <ColumnHeader label="Operario/os" tooltipKey="operarios" />
+                            </th>
+
+                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap text-xs">
+                                <ColumnHeader label="Pallets" tooltipKey="pallets" />
+                            </th>
+
+                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap">
+                                <ColumnHeader label="Bultos" tooltipKey="bultos" />
+                            </th>
+
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">
+                                <ColumnHeader label="Estado" tooltipKey="estado" />
+                            </th>
+
+                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap text-xs leading-tight">
+                                <ColumnHeader label="Pallets Desp." tooltipKey="pallets_despachados" />
+                            </th>
+
+                            <th className="h-11 px-3 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">
+                                <ColumnHeader label="Etiquetador" tooltipKey="etiquetador" />
+                            </th>
+
+                            <th className="h-11 px-3 text-center align-middle font-semibold text-muted-foreground whitespace-nowrap w-[80px]">
+                                <ColumnHeader label="Acciones" tooltipKey="acciones" />
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -541,7 +630,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                     key={row._localId}
                                     className={`border-b transition-colors hover:bg-muted/20 ${rowBorder} ${!editable ? 'opacity-75' : ''}`}
                                 >
-                                    {/* Fecha */}
                                     <td className="p-2 align-middle">
                                         {editable ? (
                                             <input
@@ -555,7 +643,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Viaje */}
                                     <td className="p-2 align-middle">
                                         {editable ? (
                                             <input
@@ -574,7 +661,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Transporte */}
                                     <td className="p-2 align-middle">
                                         {editable ? (
                                             <select
@@ -592,7 +678,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Retira */}
                                     <td className="p-2 align-middle">
                                         {editable ? (
                                             <input
@@ -608,8 +693,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                             </div>
                                         )}
                                     </td>
-                                    
-                                    {/* Patente */}
+
                                     <td className="p-2 align-middle">
                                         {editable ? (
                                             <input
@@ -626,7 +710,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Operarios */}
                                     <td className="p-2 align-middle">
                                         {editable ? (
                                             <OperatorMultiSelect
@@ -645,7 +728,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Pallets */}
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
                                             <input
@@ -660,7 +742,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Bultos */}
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
                                             <input
@@ -674,7 +755,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Estado */}
                                     <td className="p-2 align-middle">
                                         {editable ? (
                                             <select
@@ -695,7 +775,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Pallets Desp. */}
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
                                             <input
@@ -709,7 +788,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-                                    {/* Etiquetador */}
                                     <td className="p-2 align-middle">
                                         {editable ? (
                                             <select
@@ -727,9 +805,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                         )}
                                     </td>
 
-
-
-                                    {/* Acciones */}
                                     <td className="p-2 align-middle">
                                         <div className="flex items-center justify-center gap-1">
                                             {!editable && (
@@ -774,24 +849,20 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     )
 }
 
-// --- Helpers ---
-
-// --- Multi-select de operarios ---
-
-function OperatorMultiSelect({ 
-    selected, 
+function OperatorMultiSelect({
+    selected,
     warehouse,
-    onToggle 
-}: { 
-    selected: string[]; 
+    onToggle
+}: {
+    selected: string[];
     warehouse: string;
-    onToggle: (op: string) => void 
+    onToggle: (op: string) => void
 }) {
     const [isOpen, setIsOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const allOperators = getOperatorsForContext(warehouse)
-    
-    const filteredOperators = allOperators.filter(op => 
+
+    const filteredOperators = allOperators.filter(op =>
         op.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
@@ -815,7 +886,6 @@ function OperatorMultiSelect({
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); setSearchTerm(''); }} />
                     <div className="absolute z-50 mt-1 w-64 rounded-md border bg-popover p-2 shadow-xl animate-in fade-in zoom-in-95 duration-100">
-                        {/* Buscador */}
                         <div className="relative mb-2">
                             <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                             <input
@@ -832,16 +902,15 @@ function OperatorMultiSelect({
                             {filteredOperators.length > 0 ? (
                                 filteredOperators.map((op) => (
                                     <button
-                                        key={op} 
+                                        key={op}
                                         type="button"
                                         onClick={() => {
                                             onToggle(op);
                                             setIsOpen(false);
                                             setSearchTerm('');
                                         }}
-                                        className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm transition-all hover:bg-accent ${
-                                            selected.includes(op) ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground'
-                                        }`}
+                                        className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm transition-all hover:bg-accent ${selected.includes(op) ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground'
+                                            }`}
                                     >
                                         <span className="truncate">{op}</span>
                                         {selected.includes(op) && <Check className="h-4 w-4 shrink-0" />}

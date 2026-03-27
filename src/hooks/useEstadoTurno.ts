@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { EstadoTurnoTrip } from '@/types/estado-turno'
+import { EstadoTurnoTrip, EstadoTurnoTripType } from '@/types/estado-turno'
 
 const CHANNELS = [
     { id: '12THXnAPh19StLyMc-wOp_iqz9cvD__ktVxwuKNcoTMM', sheet: 'PL2', type: 'B2C', cols: { fecha: 0, viaje: 3, bultos: 7, operario: 4, etiquetador: 10, transporte: 2, estado: 8 } },
@@ -52,7 +52,7 @@ async function fetchFromSheets(): Promise<EstadoTurnoTrip[]> {
 
             const rawStatus = row[ch.cols.estado]?.toUpperCase() || ''
             const op = row[ch.cols.operario] || '---'
-            const etiq = row[ch.cols.etiquetador] || '---'
+            const etiq = ch.cols.etiquetador !== undefined ? row[ch.cols.etiquetador] || '---' : '---'
 
             let status: 1|2|3|4|5 = 1
             if (rawStatus.includes('LIBERADO') || rawStatus.includes('ENTREGADO')) status = 5
@@ -65,7 +65,7 @@ async function fetchFromSheets(): Promise<EstadoTurnoTrip[]> {
             tempMap.set(nViaje + ch.type, {
                 id: nViaje,
                 originalType: ch.type,
-                type: flotaPropia ? 'FLOTA' : (ch.type as any),
+                type: flotaPropia ? 'FLOTA' : (ch.type as EstadoTurnoTripType),
                 pkgs: parseInt(row[ch.cols.bultos]) || 0,
                 op: (op === 'FALSE' || op === '') ? '---' : op,
                 etiq: (etiq === 'FALSE' || etiq === '') ? '---' : etiq,

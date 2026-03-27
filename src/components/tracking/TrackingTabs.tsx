@@ -7,7 +7,7 @@ import { B2CTable } from './B2CTable'
 import { B2BTable } from './B2BTable'
 import { useProfile } from '@/hooks/useProfile'
 import { useSearchStore } from '@/hooks/useSearchStore'
-import { formatDate } from '@/lib/utils'
+import { formatDate, cn } from '@/lib/utils'
 import type { B2CTrip, B2BTrip, Warehouse } from '@/types/tracking'
 
 interface TrackingTabsProps {
@@ -32,6 +32,24 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatc
 
     const hasAnyUnsaved = hasUnsavedB2C || hasUnsavedB2B
 
+    // Restore last tab & save warehouse history on mount
+    useEffect(() => {
+        try {
+            // Save current warehouse to history
+            if (warehouse) {
+                localStorage.setItem('tracking_last_warehouse', warehouse.toLowerCase())
+            }
+
+            // Restore last tab for THIS specific warehouse
+            const savedTab = localStorage.getItem(`tracking_last_tab_${warehouse.toLowerCase()}`) as TabValue
+            if (savedTab === 'b2c' || savedTab === 'b2b') {
+                setActiveTab(savedTab)
+            }
+        } catch (e) {
+            console.warn('localStorage is not available')
+        }
+    }, [warehouse])
+
     // Alerta al cerrar pestaña/navegador si hay cambios sin guardar
     useEffect(() => {
         if (!hasAnyUnsaved) return
@@ -46,20 +64,27 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatc
         return () => window.removeEventListener('beforeunload', handleBeforeUnload)
     }, [hasAnyUnsaved])
 
-    const handleBack = useCallback(() => {
+    const handleSwitchWarehouse = useCallback((newWarehouse: 'PL2' | 'PL3') => {
+        if (warehouse.toUpperCase() === newWarehouse) return
         if (hasAnyUnsaved) {
             const confirmed = window.confirm(
-                'Tenés filas sin guardar. Si volvés, se perderán los cambios. ¿Continuar?'
+                'Tenés filas sin guardar. Si cambiás de depósito se perderán los cambios. ¿Continuar?'
             )
             if (!confirmed) return
         }
-        router.push('/tracking')
-    }, [hasAnyUnsaved, router])
+        router.push(`/tracking/${newWarehouse.toLowerCase()}`)
+    }, [hasAnyUnsaved, router, warehouse])
+
     const handleTabSwitch = useCallback(
         (tab: TabValue) => {
             setActiveTab(tab)
+            try {
+                localStorage.setItem(`tracking_last_tab_${warehouse.toLowerCase()}`, tab)
+            } catch (e) {
+                // Ignore
+            }
         },
-        []
+        [warehouse]
     )
 
     const filteredB2C = b2cTrips.filter(trip => {
@@ -97,19 +122,36 @@ export function TrackingTabs({ warehouse, b2cTrips, b2bTrips, onSave, onSaveBatc
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <button
-                        onClick={handleBack}
-                        className="rounded-md p-2 hover:bg-muted transition-colors"
-                        aria-label="Volver al selector"
-                    >
-                        <ArrowLeft className="h-5 w-5" />
-                    </button>
+                    <div className="flex bg-muted/50 p-1 rounded-xl">
+                        <button
+                            onClick={() => handleSwitchWarehouse('PL2')}
+                            className={cn(
+                                "px-4 py-2 text-sm font-bold rounded-lg transition-all",
+                                warehouse?.toUpperCase() === 'PL2' 
+                                    ? "bg-primary text-primary-foreground shadow-sm" 
+                                    : "text-muted-foreground hover:bg-muted"
+                            )}
+                        >
+                            PL2
+                        </button>
+                        <button
+                            onClick={() => handleSwitchWarehouse('PL3')}
+                            className={cn(
+                                "px-4 py-2 text-sm font-bold rounded-lg transition-all",
+                                warehouse?.toUpperCase() === 'PL3' 
+                                    ? "bg-primary text-primary-foreground shadow-sm" 
+                                    : "text-muted-foreground hover:bg-muted"
+                            )}
+                        >
+                            PL3
+                        </button>
+                    </div>
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">
-                            {warehouse?.toUpperCase()} -&gt; {profile?.full_name || 'Usuario'}
+                            {profile?.full_name || 'Usuario'}
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Registro de movimientos de viajes
+                            Registro de movimientos operativos
                         </p>
                     </div>
                 </div>

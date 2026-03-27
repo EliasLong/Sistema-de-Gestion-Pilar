@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { Warehouse, FileText } from 'lucide-react'
 
 const OPTIONS = [
@@ -26,6 +27,28 @@ const OPTIONS = [
 
 export function WarehouseSelector() {
     const router = useRouter()
+    const [isChecking, setIsChecking] = useState(true)
+
+    useEffect(() => {
+        try {
+            const lastWarehouse = localStorage.getItem('tracking_last_warehouse')
+            if (lastWarehouse && (lastWarehouse === 'pl2' || lastWarehouse === 'pl3')) {
+                router.replace(`/tracking/${lastWarehouse}`)
+            } else {
+                setIsChecking(false)
+            }
+        } catch (e) {
+            setIsChecking(false)
+        }
+    }, [router])
+
+    if (isChecking) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+            </div>
+        )
+    }
 
     return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8">

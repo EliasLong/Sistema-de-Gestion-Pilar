@@ -37,11 +37,13 @@ export default function EstadoDelTurnoPage() {
     }, [])
 
     // Auth & Initial Sync
+    const [hasInitialSync, setHasInitialSync] = useState(false)
     useEffect(() => {
-        if (profile?.email && trips.length === 0 && !isLoading) {
+        if (profile?.email && !hasInitialSync) {
             syncAll()
+            setHasInitialSync(true)
         }
-    }, [profile?.email, trips.length, isLoading, syncAll])
+    }, [profile?.email, hasInitialSync, syncAll])
 
     // Derived Data
     const filteredTrips = useMemo(() => {

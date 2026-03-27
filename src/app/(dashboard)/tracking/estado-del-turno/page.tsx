@@ -55,7 +55,7 @@ export default function EstadoDelTurnoPage() {
         })
     }, [trips, filter, search])
 
-    const calculateShiftPerformance = () => {
+    const performance = useMemo(() => {
         let pData = { pickers: {} as Record<string, number>, etiqs: {} as Record<string, number>, totalPick: 0, totalEtiq: 0 }
         if (!shiftData) return pData
         
@@ -72,19 +72,20 @@ export default function EstadoDelTurnoPage() {
             }
         })
         return pData
-    }
-
-    const performance = useMemo(() => calculateShiftPerformance(), [trips, shiftData])
+    }, [trips, shiftData])
 
     const dashboardStats = useMemo(() => {
         const today = new Date().setHours(0,0,0,0)
         let prog = 0, desp = 0, pend = 0
         trips.forEach(t => {
-            const tDate = new Date(parseInt(t.fecha.split('/')[2]), parseInt(t.fecha.split('/')[1])-1, parseInt(t.fecha.split('/')[0]))
-            const isToday = tDate.getTime() === today
-            if (t.type === 'FLOTA' || (t.originalType === 'B2B' && isToday)) {
-                prog++
-                if (t.status === 5) desp++; else pend++
+            const dateParts = t.fecha.split('/')
+            if (dateParts.length >= 3) {
+                const tDate = new Date(parseInt(dateParts[2]), parseInt(dateParts[1])-1, parseInt(dateParts[0]))
+                const isToday = tDate.getTime() === today
+                if (t.type === 'FLOTA' || (t.originalType === 'B2B' && isToday)) {
+                    prog++
+                    if (t.status === 5) desp++; else pend++
+                }
             }
         })
         const perc = prog > 0 ? Math.round((desp/prog)*100) : 0
@@ -125,13 +126,13 @@ export default function EstadoDelTurnoPage() {
     }
 
     // Sub-components
-    const KanbanColumn = ({ num, title, colorClass, status }: { num: string, title: string, colorClass: string, status: number }) => {
+    const renderKanbanColumn = (num: string, title: string, colorClass: string, status: number) => {
         const colTrips = filteredTrips.filter(t => t.status === status)
         return (
-            <div className="flex flex-col min-w-[300px] h-[calc(100vh-200px)] bg-slate-900/40 border border-white/5 last:border-r-0 rounded-2xl overflow-hidden shrink-0">
+            <div key={status} className="flex flex-col min-w-[300px] h-[calc(100vh-200px)] bg-slate-900/40 border border-white/5 last:border-r-0 rounded-2xl overflow-hidden shrink-0">
                 <div className={cn("p-4 flex items-center justify-between border-b border-white/5", colorClass)}>
                     <h3 className={cn("text-[10px] font-bold uppercase tracking-widest", colorClass.replace('bg-', 'text-').replace('/5', ''))}>{num}. {title}</h3>
-                    <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded", colorClass.replace('/5', '/20').replace('bg-', 'text-').replace('-500', '-400'), colorClass.replace('/5', '/20'))}>{colTrips.length}</span>
+                    <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded", colorClass.replace('/5', '/20').replace('bg-', 'text-').replace('-500', '-400'))}>{colTrips.length}</span>
                 </div>
                 <div className="p-3 space-y-3 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-700">
                     {colTrips.map(t => (
@@ -221,11 +222,11 @@ export default function EstadoDelTurnoPage() {
             {/* Views */}
             {view === 'monitor' ? (
                 <div className="flex-1 overflow-x-auto flex p-4 gap-4 scrollbar-thin scrollbar-thumb-slate-700 pb-20">
-                    <KanbanColumn num="01" title="Pendientes" colorClass="bg-slate-800/10 text-slate-400" status={1} />
-                    <KanbanColumn num="02" title="En Picking" colorClass="bg-blue-500/5 text-blue-400" status={2} />
-                    <KanbanColumn num="03" title="Fac / ETIQ" colorClass="bg-pink-500/5 text-pink-400" status={3} />
-                    <KanbanColumn num="04" title="Listo Despacho" colorClass="bg-orange-500/5 text-orange-400" status={4} />
-                    <KanbanColumn num="05" title="Despachados" colorClass="bg-emerald-500/5 text-emerald-400" status={5} />
+                    {renderKanbanColumn("01", "Pendientes", "bg-slate-800/10 text-slate-400", 1)}
+                    {renderKanbanColumn("02", "En Picking", "bg-blue-500/5 text-blue-400", 2)}
+                    {renderKanbanColumn("03", "Fac / ETIQ", "bg-pink-500/5 text-pink-400", 3)}
+                    {renderKanbanColumn("04", "Listo Despacho", "bg-orange-500/5 text-orange-400", 4)}
+                    {renderKanbanColumn("05", "Despachados", "bg-emerald-500/5 text-emerald-400", 5)}
                 </div>
             ) : (
                 <div className="flex-1 overflow-y-auto p-6 md:p-10 bg-[#060912] pb-20">

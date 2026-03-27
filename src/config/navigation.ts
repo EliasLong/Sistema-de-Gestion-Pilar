@@ -18,6 +18,7 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>
   roles: UserRole[]
   badge?: string
+  subItems?: { title: string; href: string }[]
 }
 
 export const navigation: NavItem[] = [
@@ -32,6 +33,11 @@ export const navigation: NavItem[] = [
     href: '/tracking',
     icon: Truck,
     roles: ['operative', 'supervisor', 'manager', 'admin'],
+    subItems: [
+      { title: 'PL2', href: '/tracking/pl2' },
+      { title: 'PL3', href: '/tracking/pl3' },
+      { title: 'Estado del turno', href: '/tracking/estado-del-turno' },
+    ],
   },
   {
     title: 'Reclamos',

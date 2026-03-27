@@ -23,12 +23,12 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Privilegios de administrador requeridos' }, { status: 403 })
         }
 
-        // Obtener todos los usuarios
-        const { data: users, error: usersError } = await supabase
-            .from('auth.users')
-            .select('id, email, user_metadata')
+        // Obtener usuarios con sus roles
+        const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('*')
 
-        if (usersError) throw usersError
+        if (profilesError) throw profilesError
 
         // Obtener roles de cada usuario
         const { data: allUserRoles, error: rolesError } = await supabase
@@ -38,15 +38,15 @@ export async function GET(request: NextRequest) {
         if (rolesError) throw rolesError
 
         // Combinar usuarios con sus roles
-        const usersWithRoles = users.map((u: any) => ({
-            id: u.id,
-            email: u.email,
-            full_name: u.user_metadata?.full_name || '',
+        const usersWithRoles = profiles.map((profile: any) => ({
+            id: profile.id,
+            email: profile.email,
+            full_name: profile.full_name || '',
             roles: allUserRoles
-                .filter((ur: any) => ur.user_id === u.id)
+                .filter((ur: any) => ur.user_id === profile.id)
                 .map((ur: any) => ur.role),
-            created_at: u.created_at,
-            last_sign_in_at: u.last_sign_in_at,
+            created_at: profile.created_at,
+            last_sign_in_at: profile.last_sign_in_at,
         }))
 
         return NextResponse.json(usersWithRoles)
@@ -92,12 +92,20 @@ export async function POST(request: NextRequest) {
         const { data: authUser, error: createError } = await supabase.auth.admin.createUser({
             email,
             password,
-            user_metadata: {
-                full_name: full_name || '',
-            },
         })
 
         if (createError) throw createError
+
+        // Insertar en profiles
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+                id: authUser.user.id,
+                email,
+                full_name: full_name || '',
+            })
+
+        if (profileError) throw profileError
 
         // Asignar rol al usuario
         const { error: roleError } = await supabase
@@ -217,7 +225,15 @@ export async function DELETE(request: NextRequest) {
 
         if (roleError) throw roleError
 
-        // Eliminar usuario
+        // Eliminar de profiles
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .delete()
+            .eq('id', user_id)
+
+        if (profileError) throw profileError
+
+        // Eliminar usuario de auth
         const { error: deleteError } = await supabase.auth.admin.deleteUser(user_id)
 
         if (deleteError) throw deleteError

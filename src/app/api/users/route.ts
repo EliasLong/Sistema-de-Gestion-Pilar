@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerComponentClient as createClient } from '@/lib/supabase-server'
+import { createClient } from '@supabase/supabase-js'
+import { createServerComponentClient as createClientUser } from '@/lib/supabase-server'
+
+const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 // GET - Listar todos los usuarios con sus roles
 export async function GET(request: NextRequest) {
     try {
-        const supabase = createClient()
+        const supabaseUser = createClientUser()
 
         // Verificar autenticación
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        const { data: { user }, error: authError } = await supabaseUser.auth.getUser()
         if (authError || !user) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
         }
 
         // Verificar que sea ADMIN
-        const { data: userRoles } = await supabase
+        const { data: userRoles } = await supabaseAdmin
             .from('user_roles')
             .select('role')
             .eq('user_id', user.id)
@@ -23,15 +29,15 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Privilegios de administrador requeridos' }, { status: 403 })
         }
 
-        // Obtener usuarios con sus roles
-        const { data: profiles, error: profilesError } = await supabase
+        // Obtener usuarios con sus roles (usando admin client)
+        const { data: profiles, error: profilesError } = await supabaseAdmin
             .from('profiles')
             .select('*')
 
         if (profilesError) throw profilesError
 
         // Obtener roles de cada usuario
-        const { data: allUserRoles, error: rolesError } = await supabase
+        const { data: allUserRoles, error: rolesError } = await supabaseAdmin
             .from('user_roles')
             .select('user_id, role')
 
@@ -59,16 +65,16 @@ export async function GET(request: NextRequest) {
 // POST - Crear nuevo usuario
 export async function POST(request: NextRequest) {
     try {
-        const supabase = createClient()
+        const supabaseUser = createClientUser()
 
         // Verificar autenticación
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        const { data: { user }, error: authError } = await supabaseUser.auth.getUser()
         if (authError || !user) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
         }
 
         // Verificar que sea ADMIN
-        const { data: userRoles } = await supabase
+        const { data: userRoles } = await supabaseAdmin
             .from('user_roles')
             .select('role')
             .eq('user_id', user.id)
@@ -89,7 +95,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Crear usuario en auth.users
-        const { data: authUser, error: createError } = await supabase.auth.admin.createUser({
+        const { data: authUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
             email,
             password,
         })
@@ -97,7 +103,7 @@ export async function POST(request: NextRequest) {
         if (createError) throw createError
 
         // Insertar en profiles
-        const { error: profileError } = await supabase
+        const { error: profileError } = await supabaseAdmin
             .from('profiles')
             .insert({
                 id: authUser.user.id,
@@ -108,7 +114,7 @@ export async function POST(request: NextRequest) {
         if (profileError) throw profileError
 
         // Asignar rol al usuario
-        const { error: roleError } = await supabase
+        const { error: roleError } = await supabaseAdmin
             .from('user_roles')
             .insert({
                 user_id: authUser.user.id,
@@ -132,16 +138,16 @@ export async function POST(request: NextRequest) {
 // PUT - Actualizar usuario (cambiar rol)
 export async function PUT(request: NextRequest) {
     try {
-        const supabase = createClient()
+        const supabaseUser = createClientUser()
 
         // Verificar autenticación
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        const { data: { user }, error: authError } = await supabaseUser.auth.getUser()
         if (authError || !user) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
         }
 
         // Verificar que sea ADMIN
-        const { data: userRoles } = await supabase
+        const { data: userRoles } = await supabaseAdmin
             .from('user_roles')
             .select('role')
             .eq('user_id', user.id)
@@ -162,14 +168,14 @@ export async function PUT(request: NextRequest) {
         }
 
         // Cambiar rol
-        const { error: deleteError } = await supabase
+        const { error: deleteError } = await supabaseAdmin
             .from('user_roles')
             .delete()
             .eq('user_id', user_id)
 
         if (deleteError) throw deleteError
 
-        const { error: insertError } = await supabase
+        const { error: insertError } = await supabaseAdmin
             .from('user_roles')
             .insert({
                 user_id,
@@ -188,16 +194,16 @@ export async function PUT(request: NextRequest) {
 // DELETE - Eliminar usuario
 export async function DELETE(request: NextRequest) {
     try {
-        const supabase = createClient()
+        const supabaseUser = createClientUser()
 
         // Verificar autenticación
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        const { data: { user }, error: authError } = await supabaseUser.auth.getUser()
         if (authError || !user) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
         }
 
         // Verificar que sea ADMIN
-        const { data: userRoles } = await supabase
+        const { data: userRoles } = await supabaseAdmin
             .from('user_roles')
             .select('role')
             .eq('user_id', user.id)
@@ -218,7 +224,7 @@ export async function DELETE(request: NextRequest) {
         }
 
         // Eliminar roles asociados
-        const { error: roleError } = await supabase
+        const { error: roleError } = await supabaseAdmin
             .from('user_roles')
             .delete()
             .eq('user_id', user_id)
@@ -226,7 +232,7 @@ export async function DELETE(request: NextRequest) {
         if (roleError) throw roleError
 
         // Eliminar de profiles
-        const { error: profileError } = await supabase
+        const { error: profileError } = await supabaseAdmin
             .from('profiles')
             .delete()
             .eq('id', user_id)
@@ -234,7 +240,7 @@ export async function DELETE(request: NextRequest) {
         if (profileError) throw profileError
 
         // Eliminar usuario de auth
-        const { error: deleteError } = await supabase.auth.admin.deleteUser(user_id)
+        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id)
 
         if (deleteError) throw deleteError
 

@@ -157,7 +157,7 @@ export default function EstadoDelTurnoPage() {
     return (
         <div className="min-h-[calc(100vh-80px)] bg-[#060912] text-slate-200 font-sans -m-6 h-full overflow-hidden flex flex-col">
             {/* Loader */}
-            {isLoading && (
+            {isLoading && trips.length === 0 && (
                 <div className="fixed inset-0 bg-[#060912]/80 backdrop-blur-sm z-[100] flex items-center justify-center">
                     <div className="text-center">
                         <RefreshCcw className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />

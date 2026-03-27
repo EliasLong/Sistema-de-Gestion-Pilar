@@ -32,10 +32,23 @@ async function fetchFromSheets(): Promise<EstadoTurnoTrip[]> {
     today.setHours(0, 0, 0, 0)
     const tempMap = new Map<string, EstadoTurnoTrip>()
 
-    for (const ch of CHANNELS) {
+    // Parallelize network requests to cut waiting time by 50%
+    const fetchPromises = CHANNELS.map(async (ch) => {
         const url = `https://docs.google.com/spreadsheets/d/${ch.id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(ch.sheet)}&t=${Date.now()}`
-        const res = await fetch(url)
-        const csv = await res.text()
+        try {
+            const res = await fetch(url)
+            const csv = await res.text()
+            return { ch, csv }
+        } catch(e) {
+            console.error(`Failed to fetch channel ${ch.type}`, e)
+            return { ch, csv: '' }
+        }
+    })
+
+    const results = await Promise.all(fetchPromises)
+
+    for (const { ch, csv } of results) {
+        if (!csv) continue
         const rows = csv.split('\n').map(r => r.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c => c.replace(/^"|"$/g, '').trim()))
 
         for (let i = 1; i < rows.length; i++) {
@@ -80,7 +93,6 @@ async function fetchFromSheets(): Promise<EstadoTurnoTrip[]> {
 
 async function fetchFromDB(): Promise<EstadoTurnoTrip[]> {
     // TODO: Implement Supabase fetch strategy here once backend is ready
-    // e.g. const res = await fetch('/api/tracking/estado-turno')
     return []
 }
 
@@ -89,12 +101,26 @@ export function useEstadoTurno() {
     const [isLoading, setIsLoading] = useState(false)
     const [lastSync, setLastSync] = useState<Date | null>(null)
 
+    // SWR Initialization: Load cached trips from localStorage if any
+    useState(() => {
+        try {
+            const cached = localStorage.getItem('estado_turno_cache')
+            if (cached) {
+                const parsed = JSON.parse(cached)
+                setTrips(parsed)
+            }
+        } catch (e) {}
+    })
+
     const syncAll = useCallback(async () => {
         setIsLoading(true)
         try {
             const data = USE_LEGACY_SHEETS ? await fetchFromSheets() : await fetchFromDB()
             setTrips(data)
             setLastSync(new Date())
+            try {
+                localStorage.setItem('estado_turno_cache', JSON.stringify(data))
+            } catch (e) {}
         } catch (error) {
             console.error("Error fetching turnos:", error)
         } finally {

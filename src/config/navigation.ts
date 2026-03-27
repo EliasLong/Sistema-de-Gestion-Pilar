@@ -9,6 +9,7 @@ import {
   Settings,
   Users,
   Trash2,
+  Wrench,
 } from 'lucide-react'
 import type { UserRole } from '../types/database'
 
@@ -68,6 +69,15 @@ export const navigation: NavItem[] = [
     href: '/chat',
     icon: MessageCircle,
     roles: ['operative', 'supervisor', 'manager', 'admin'],
+  },
+  {
+    title: 'Herramientas',
+    href: '/herramientas',
+    icon: Wrench,
+    roles: ['operative', 'supervisor', 'manager', 'admin'],
+    subItems: [
+      { title: 'Reporte de incidencias', href: '/herramientas/reporte-incidencias' }
+    ]
   },
   {
     title: 'Configuración',

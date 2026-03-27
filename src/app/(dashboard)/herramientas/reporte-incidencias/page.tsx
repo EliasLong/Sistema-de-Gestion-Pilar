@@ -2,49 +2,71 @@
 
 import React, { useState, useMemo } from 'react'
 import { useProfile } from '@/hooks/useProfile'
-import { AlertTriangle, Clock, Search, ExternalLink, Plus, Filter, MessageSquareWarning, X, CheckCircle2, AlertCircle, Info } from 'lucide-react'
+import { Plus, Search, Filter, AlertTriangle, Clock, CheckCircle2, MessageSquareWarning, Image as ImageIcon, MapPin, Package, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// Types
-type TipoIncidencia = 'Faltante' | 'Rotura' | 'Sistemas' | 'Accidente' | 'Otro'
-type Gravedad = 'Baja' | 'Media' | 'Alta' | 'Crítica'
-type Operacion = 'B2C' | 'B2B' | 'Flota' | 'Interna'
-type EstadoIncidencia = 'Abierto' | 'En Revisión' | 'Resuelto'
+// Types based on WAREHOUSE PRO GAS Schema
+type Nivel = 'Bajo' | 'Medio' | 'Alto'
+type Estado = 'PENDIENTE' | 'EN PROCESO' | 'RESUELTO' | 'FINALIZADO'
 
-interface Ticket {
-    id: string
+interface TicketWPro {
+    id: number
     createdAt: number
-    tipo: TipoIncidencia
-    gravedad: Gravedad
-    operacion: Operacion
-    viaje: string
-    descripcion: string
-    estado: EstadoIncidencia
-    reporter: string
+    localizador: string
+    sector: string
+    nivel: Nivel
+    sku: string
+    novedad: string
+    operario: string
+    fotoUrl: string
+    estado: Estado
+    resolucion: string
+    deposito: string
 }
 
-const MOCK_TICKETS: Ticket[] = [
+// Mock initial data based on the logic
+const MOCK_TICKETS: TicketWPro[] = [
     {
-        id: 'INC-9012',
+        id: 1001,
         createdAt: Date.now() - 3600000 * 2,
-        tipo: 'Rotura',
-        gravedad: 'Media',
-        operacion: 'B2C',
-        viaje: 'OCA 1234',
-        descripcion: 'Paquete de logística reversa llegó con embalaje dañado y contenido expuesto.',
-        estado: 'En Revisión',
-        reporter: 'operador@ocasa.com'
+        localizador: 'LOC-12345',
+        sector: 'RECEPCIÓN',
+        nivel: 'Alto',
+        sku: 'SKU-9921',
+        novedad: 'Llegó mercancía aplastada, compromiso térmico.',
+        operario: 'operador@ocasa.com',
+        fotoUrl: 'Sin imagen',
+        estado: 'PENDIENTE',
+        resolucion: '',
+        deposito: 'PL2'
     },
     {
-        id: 'INC-9013',
+        id: 1002,
         createdAt: Date.now() - 3600000 * 24,
-        tipo: 'Faltante',
-        gravedad: 'Alta',
-        operacion: 'B2B',
-        viaje: 'AND 9923',
-        descripcion: 'Faltan 2 bultos en el manifiesto de carga del proveedor.',
-        estado: 'Abierto',
-        reporter: 'supervisor@ocasa.com'
+        localizador: 'LOC-9988',
+        sector: 'EXPEDICIÓN',
+        nivel: 'Medio',
+        sku: 'SKU-1122',
+        novedad: 'Etiqueta ilegible, no se puede despachar.',
+        operario: 'supervisor@ocasa.com',
+        fotoUrl: 'Sin imagen',
+        estado: 'EN PROCESO',
+        resolucion: '',
+        deposito: 'PL2'
+    },
+    {
+        id: 1003,
+        createdAt: Date.now() - 3600000 * 48,
+        localizador: 'LOC-5544',
+        sector: 'INVENTARIO',
+        nivel: 'Bajo',
+        sku: 'SKU-0000',
+        novedad: 'Diferencia de 1 bulto en consolidado.',
+        operario: 'operador2@ocasa.com',
+        fotoUrl: 'Sin imagen',
+        estado: 'RESUELTO',
+        resolucion: 'Ajuste de inventario realizado.',
+        deposito: 'PL3'
     }
 ]
 
@@ -52,216 +74,208 @@ export default function ReporteIncidenciasPage() {
     const { profile } = useProfile()
     
     // State
-    const [tickets, setTickets] = useState<Ticket[]>(MOCK_TICKETS)
+    const [tickets, setTickets] = useState<TicketWPro[]>(MOCK_TICKETS)
     const [search, setSearch] = useState('')
-    const [filterEstado, setFilterEstado] = useState<EstadoIncidencia | 'Todos'>('Todos')
+    const [filtroDeposito, setFiltroDeposito] = useState<string>('Todos')
     const [isFormOpen, setIsFormOpen] = useState(false)
 
     // Form State
-    const [fTipo, setFTipo] = useState<TipoIncidencia>('Otro')
-    const [fGravedad, setFGravedad] = useState<Gravedad>('Media')
-    const [fOperacion, setFOperacion] = useState<Operacion>('Interna')
-    const [fViaje, setFViaje] = useState('')
-    const [fDesc, setFDesc] = useState('')
+    const [fDeposito, setFDeposito] = useState('PL2')
+    const [fSector, setFSector] = useState('')
+    const [fNivel, setFNivel] = useState<Nivel>('Bajo')
+    const [fLoc, setFLoc] = useState('')
+    const [fSku, setFSku] = useState('')
+    const [fNovedad, setFNovedad] = useState('')
 
-    // Derived
+    // Unique Depositos for filter
+    const depositos = useMemo(() => {
+        const deps = new Set(tickets.map(t => t.deposito))
+        return ['Todos', ...Array.from(deps)]
+    }, [tickets])
+
+    // Filter Logic matching GAS `obtenerEstadisticas` / `obtenerUrgentes`
     const filteredTickets = useMemo(() => {
         const query = search.toLowerCase()
         return tickets.filter(t => {
-            const matchSearch = t.id.toLowerCase().includes(query) || t.descripcion.toLowerCase().includes(query) || t.viaje.toLowerCase().includes(query)
-            const matchEstado = filterEstado === 'Todos' || t.estado === filterEstado
-            return matchSearch && matchEstado
+            const matchSearch = String(t.id).includes(query) || t.localizador.toLowerCase().includes(query) || t.sku.toLowerCase().includes(query) || t.novedad.toLowerCase().includes(query)
+            const matchDep = filtroDeposito === 'Todos' || t.deposito === filtroDeposito
+            return matchSearch && matchDep
         }).sort((a,b) => b.createdAt - a.createdAt)
-    }, [tickets, search, filterEstado])
+    }, [tickets, search, filtroDeposito])
 
+    // Stats mimicking GAS stats
     const stats = useMemo(() => {
         return {
-            abiertos: tickets.filter(t => t.estado === 'Abierto').length,
-            revision: tickets.filter(t => t.estado === 'En Revisión').length,
-            resueltos: tickets.filter(t => t.estado === 'Resuelto').length,
-            criticos: tickets.filter(t => t.gravedad === 'Crítica' && t.estado !== 'Resuelto').length
+            alto: filteredTickets.filter(t => t.nivel === 'Alto' && t.estado !== 'RESUELTO' && t.estado !== 'FINALIZADO').length,
+            medio: filteredTickets.filter(t => t.nivel === 'Medio' && t.estado !== 'RESUELTO' && t.estado !== 'FINALIZADO').length,
+            bajo: filteredTickets.filter(t => t.nivel === 'Bajo' && t.estado !== 'RESUELTO' && t.estado !== 'FINALIZADO').length,
+            pendientes: filteredTickets.filter(t => t.estado === 'PENDIENTE').length,
+            enProceso: filteredTickets.filter(t => t.estado === 'EN PROCESO').length,
+            total: filteredTickets.length
         }
-    }, [tickets])
+    }, [filteredTickets])
 
     // Handlers
     const submitForm = (e: React.FormEvent) => {
         e.preventDefault()
-        const newTicket: Ticket = {
-            id: `INC-${Math.floor(1000 + Math.random() * 9000)}`,
+        const newId = tickets.length > 0 ? Math.max(...tickets.map(t => t.id)) + 1 : 1001
+        
+        const newTicket: TicketWPro = {
+            id: newId,
             createdAt: Date.now(),
-            tipo: fTipo,
-            gravedad: fGravedad,
-            operacion: fOperacion,
-            viaje: fViaje,
-            descripcion: fDesc,
-            estado: 'Abierto',
-            reporter: profile?.email || 'Usuario Desconocido'
+            localizador: fLoc || 'S/L',
+            sector: fSector || 'S/D',
+            nivel: fNivel,
+            sku: fSku || 'N/A',
+            novedad: fNovedad,
+            operario: profile?.email || 'Desconocido',
+            fotoUrl: 'Sin imagen',
+            estado: 'PENDIENTE',
+            resolucion: '',
+            deposito: fDeposito
         }
+        
         setTickets([newTicket, ...tickets])
         
         // Reset
-        setFTipo('Otro')
-        setFGravedad('Media')
-        setFOperacion('Interna')
-        setFViaje('')
-        setFDesc('')
+        setFLoc('')
+        setFSku('')
+        setFNovedad('')
         setIsFormOpen(false)
     }
 
-    const toggleEstado = (id: string, nuevoEstado: EstadoIncidencia) => {
+    const updateEstado = (id: number, nuevoEstado: Estado) => {
         setTickets(tickets.map(t => t.id === id ? { ...t, estado: nuevoEstado } : t))
     }
 
-    // Helpers
-    const getGravedadColor = (g: Gravedad) => {
-        switch(g) {
-            case 'Baja': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-            case 'Media': return 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-            case 'Alta': return 'bg-orange-500/10 text-orange-500 border-orange-500/20'
-            case 'Crítica': return 'bg-rose-500/10 text-rose-500 border-rose-500/20'
-        }
-    }
-
-    const getEstadoColor = (e: EstadoIncidencia) => {
-        switch(e) {
-            case 'Abierto': return 'bg-slate-800 text-slate-300 border-slate-700'
-            case 'En Revisión': return 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-            case 'Resuelto': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-        }
-    }
-
-    const getTipoIcon = (t: TipoIncidencia) => {
-        switch(t) {
-            case 'Rotura': return <AlertTriangle className="w-4 h-4" />
-            case 'Faltante': return <Search className="w-4 h-4" />
-            case 'Accidente': return <AlertCircle className="w-4 h-4" />
-            case 'Sistemas': return <Info className="w-4 h-4" />
-            default: return <MessageSquareWarning className="w-4 h-4" />
+    // Helpers UI
+    const getNivelColor = (n: Nivel) => {
+        switch(n) {
+            case 'Alto': return 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+            case 'Medio': return 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+            case 'Bajo': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
         }
     }
 
     return (
-        <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-6 pb-20">
+        <div className="space-y-6 max-w-[1600px] mx-auto p-4 md:p-6 pb-20">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Reporte de Incidencias</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Warehouse Pro</h1>
                     <p className="text-muted-foreground mt-1">
-                        Centro de control de tickets, roturas y novedades operativas.
+                        Monitor visual de incidencias y tareas operativas
                     </p>
                 </div>
-                <button 
-                    onClick={() => setIsFormOpen(true)}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors shadow-lg shadow-blue-500/20"
-                >
-                    <Plus className="w-4 h-4" /> Nuevo Reporte
-                </button>
+                <div className="flex items-center gap-3">
+                    <select 
+                        value={filtroDeposito} 
+                        onChange={e => setFiltroDeposito(e.target.value)}
+                        className="bg-card border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 font-medium outline-none"
+                    >
+                        {depositos.map(d => <option key={d} value={d}>{d === 'Todos' ? 'Todos los Depósitos' : d}</option>)}
+                    </select>
+                    
+                    <button 
+                        onClick={() => setIsFormOpen(true)}
+                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors shadow-lg shadow-blue-500/20"
+                    >
+                        <Plus className="w-4 h-4" /> Cargar Novedad
+                    </button>
+                </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* KPI Stats Panel */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="bg-card border rounded-2xl p-5 shadow-sm">
-                    <div className="text-sm font-medium text-muted-foreground mb-1">Abiertos</div>
-                    <div className="text-3xl font-bold">{stats.abiertos}</div>
+                    <div className="text-sm font-medium text-muted-foreground mb-1">Total Activos</div>
+                    <div className="text-3xl font-bold">{stats.pendientes + stats.enProceso}</div>
                 </div>
                 <div className="bg-card border rounded-2xl p-5 shadow-sm">
-                    <div className="text-sm font-medium text-blue-500 mb-1">En Revisión</div>
-                    <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">{stats.revision}</div>
+                    <div className="text-sm font-medium text-slate-500 mb-1">Pendientes</div>
+                    <div className="flex items-baseline gap-2">
+                        <div className="text-3xl font-bold">{stats.pendientes}</div>
+                    </div>
                 </div>
-                <div className="bg-card border rounded-2xl p-5 shadow-sm">
-                    <div className="text-sm font-medium text-emerald-500 mb-1">Resueltos</div>
-                    <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{stats.resueltos}</div>
+                <div className="bg-card border border-emerald-500/20 dark:bg-emerald-950/10 rounded-2xl p-5 shadow-sm">
+                    <div className="text-sm font-medium text-emerald-500 mb-1">Nivel Bajo</div>
+                    <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{stats.bajo}</div>
+                </div>
+                <div className="bg-card border border-amber-500/30 dark:bg-amber-950/10 rounded-2xl p-5 shadow-sm">
+                    <div className="text-sm font-medium text-amber-500 mb-1">Nivel Medio</div>
+                    <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">{stats.medio}</div>
                 </div>
                 <div className="bg-card border border-rose-500/30 dark:bg-rose-950/20 rounded-2xl p-5 shadow-sm">
-                    <div className="text-sm font-medium text-rose-500 mb-1">Alertas Críticas</div>
-                    <div className="text-3xl font-bold text-rose-600 dark:text-rose-400">{stats.criticos}</div>
+                    <div className="text-sm font-medium text-rose-500 mb-1">Críticos (Alto)</div>
+                    <div className="text-3xl font-bold text-rose-600 dark:text-rose-400">{stats.alto}</div>
                 </div>
             </div>
 
-            {/* Filters */}
-            <div className="bg-card border rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center shadow-sm">
-                <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <input 
-                        value={search} 
-                        onChange={e => setSearch(e.target.value)} 
-                        type="text" 
-                        placeholder="Buscar por ID, Viaje o descripción..." 
-                        className="w-full bg-muted/50 border-transparent focus:border-blue-500 focus:bg-background rounded-xl pl-9 pr-4 py-2 text-sm transition-all focus:outline-none focus:ring-1 focus:ring-blue-500" 
-                    />
-                </div>
-                <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-                    <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
-                    {(['Todos', 'Abierto', 'En Revisión', 'Resuelto'] as const).map(e => (
-                        <button 
-                            key={e} 
-                            onClick={() => setFilterEstado(e)}
-                            className={cn(
-                                "px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors",
-                                filterEstado === e 
-                                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" 
-                                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                            )}
-                        >
-                            {e}
-                        </button>
-                    ))}
-                </div>
+            {/* Search */}
+            <div className="relative w-full max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <input 
+                    value={search} 
+                    onChange={e => setSearch(e.target.value)} 
+                    type="text" 
+                    placeholder="Buscar por Localizador, SKU, ID..." 
+                    className="w-full bg-card border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm transition-all focus:outline-none focus:ring-1 focus:ring-blue-500" 
+                />
             </div>
 
-            {/* Tickets Feed */}
-            <div className="space-y-4">
-                {filteredTickets.length === 0 ? (
-                    <div className="text-center py-12 border-2 border-dashed rounded-2xl bg-muted/20">
-                        <CheckCircle2 className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-                        <h3 className="text-lg font-medium">Bandeja Limpia</h3>
-                        <p className="text-sm text-muted-foreground">No se encontraron incidencias con estos filtros.</p>
+            {/* KANBAN BOARD */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                
+                {/* COLUMN: PENDIENTE */}
+                <div className="bg-slate-100/50 dark:bg-slate-900/50 rounded-2xl p-4 border border-slate-200 dark:border-white/5 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="font-bold flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                            <AlertTriangle className="w-4 h-4 text-amber-500" />
+                            PENDIENTE
+                        </h2>
+                        <span className="bg-slate-200 dark:bg-slate-800 text-xs font-bold px-2.5 py-1 rounded-full">{stats.pendientes}</span>
                     </div>
-                ) : (
-                    filteredTickets.map(t => (
-                        <div key={t.id} className="bg-card border rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
-                                <div className="flex items-start gap-3">
-                                    <div className={cn("p-2.5 rounded-xl border", getGravedadColor(t.gravedad))}>
-                                        {getTipoIcon(t.tipo)}
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-bold text-lg leading-none">{t.id}</h3>
-                                            <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground">{t.operacion}</span>
-                                            {t.viaje && <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">Viaje: {t.viaje}</span>}
-                                        </div>
-                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <Clock className="w-3 h-3" />
-                                            {new Date(t.createdAt).toLocaleString()}
-                                            <span>•</span>
-                                            <span>Por {t.reporter.split('@')[0]}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <select 
-                                        value={t.estado}
-                                        onChange={(e) => toggleEstado(t.id, e.target.value as EstadoIncidencia)}
-                                        className={cn(
-                                            "text-xs font-bold px-3 py-1.5 rounded-lg border appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 dark:focus:ring-offset-slate-900 transition-all",
-                                            getEstadoColor(t.estado)
-                                        )}
-                                    >
-                                        <option value="Abierto">Abierto</option>
-                                        <option value="En Revisión">En Revisión</option>
-                                        <option value="Resuelto">Resuelto</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div className="bg-muted/30 rounded-xl p-4 text-sm leading-relaxed border border-transparent dark:border-white/5">
-                                <span className="font-semibold mr-2">{t.tipo}:</span> 
-                                {t.descripcion}
-                            </div>
-                        </div>
-                    ))
-                )}
+                    
+                    <div className="space-y-3">
+                        {filteredTickets.filter(t => t.estado === 'PENDIENTE').map(t => (
+                            <TicketCard key={t.id} ticket={t} onStatusChange={updateEstado} />
+                        ))}
+                    </div>
+                </div>
+
+                {/* COLUMN: EN PROCESO */}
+                <div className="bg-blue-50/50 dark:bg-blue-950/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-900/30 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="font-bold flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                            <Clock className="w-4 h-4 text-blue-500" />
+                            EN PROCESO
+                        </h2>
+                        <span className="bg-blue-200 dark:bg-blue-900 text-xs font-bold px-2.5 py-1 rounded-full text-blue-700 dark:text-blue-300">{stats.enProceso}</span>
+                    </div>
+                    
+                    <div className="space-y-3">
+                        {filteredTickets.filter(t => t.estado === 'EN PROCESO').map(t => (
+                            <TicketCard key={t.id} ticket={t} onStatusChange={updateEstado} />
+                        ))}
+                    </div>
+                </div>
+
+                {/* COLUMN: RESUELTO / FINALIZADO */}
+                <div className="bg-emerald-50/50 dark:bg-emerald-950/10 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-900/20 space-y-4 opacity-75 hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-between">
+                        <h2 className="font-bold flex items-center gap-2 text-emerald-700 dark:text-emerald-500">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                            RESUELTOS
+                        </h2>
+                    </div>
+                    
+                    <div className="space-y-3">
+                        {filteredTickets.filter(t => t.estado === 'RESUELTO' || t.estado === 'FINALIZADO').map(t => (
+                            <TicketCard key={t.id} ticket={t} onStatusChange={updateEstado} />
+                        ))}
+                    </div>
+                </div>
+
             </div>
 
             {/* Modal Form */}
@@ -270,76 +284,148 @@ export default function ReporteIncidenciasPage() {
                     <div className="bg-card w-full max-w-md h-full shadow-2xl border-l flex flex-col animate-in slide-in-from-right duration-300">
                         <div className="p-6 border-b flex items-center justify-between shrink-0">
                             <div>
-                                <h2 className="text-xl font-bold">Nueva Incidencia</h2>
-                                <p className="text-sm text-muted-foreground">Registra un nuevo suceso</p>
+                                <h2 className="text-xl font-bold">Carga de Novedad</h2>
+                                <p className="text-sm text-muted-foreground">Sistema Warehouse Pro</p>
                             </div>
-                            <button onClick={() => setIsFormOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors">
-                                <X className="w-5 h-5" />
+                            <button onClick={() => setIsFormOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors text-slate-500">
+                                <Plus className="w-5 h-5 rotate-45" />
                             </button>
                         </div>
                         
                         <div className="p-6 overflow-y-auto flex-1">
-                            <form id="incident-form" onSubmit={submitForm} className="space-y-5">
+                            <form id="wpro-form" onSubmit={submitForm} className="space-y-5">
                                 
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Clasificación</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <span className="text-xs text-muted-foreground mb-1 block">Tipo</span>
-                                            <select required value={fTipo} onChange={e=>setFTipo(e.target.value as TipoIncidencia)} className="w-full bg-muted border-transparent rounded-lg px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-background focus:ring-1 focus:ring-blue-500 outline-none transition-all">
-                                                <option value="Faltante">Faltante</option>
-                                                <option value="Rotura">Rotura</option>
-                                                <option value="Sistemas">Sistemas</option>
-                                                <option value="Accidente">Accidente</option>
-                                                <option value="Otro">Otro</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <span className="text-xs text-muted-foreground mb-1 block">Gravedad</span>
-                                            <select required value={fGravedad} onChange={e=>setFGravedad(e.target.value as Gravedad)} className="w-full bg-muted border-transparent rounded-lg px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-background focus:ring-1 focus:ring-blue-500 outline-none transition-all">
-                                                <option value="Baja">Baja</option>
-                                                <option value="Media">Media</option>
-                                                <option value="Alta">Alta</option>
-                                                <option value="Crítica">Crítica</option>
-                                            </select>
-                                        </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Depósito</label>
+                                        <input required value={fDeposito} onChange={e=>setFDeposito(e.target.value.toUpperCase())} type="text" className="w-full bg-muted border-transparent rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:bg-background focus:ring-1 outline-none" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sector</label>
+                                        <input required value={fSector} onChange={e=>setFSector(e.target.value.toUpperCase())} type="text" placeholder="Ej: RECEPCIÓN" className="w-full bg-muted border-transparent rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:bg-background focus:ring-1 outline-none" />
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Contexto Operativo</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <span className="text-xs text-muted-foreground mb-1 block">Sector</span>
-                                            <select required value={fOperacion} onChange={e=>setFOperacion(e.target.value as Operacion)} className="w-full bg-muted border-transparent rounded-lg px-3 py-2.5 text-sm focus:border-blue-500 focus:bg-background focus:ring-1 focus:ring-blue-500 outline-none transition-all">
-                                                <option value="B2C">B2C</option>
-                                                <option value="B2B">B2B</option>
-                                                <option value="Flota">Flota Propia</option>
-                                                <option value="Interna">Procesos Internos</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <span className="text-xs text-muted-foreground mb-1 block">ID Referencia (Opcional)</span>
-                                            <input value={fViaje} onChange={e=>setFViaje(e.target.value)} type="text" placeholder="Viaje / Guía..." className="w-full bg-muted border-transparent rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:bg-background focus:ring-1 focus:ring-blue-500 outline-none transition-all" />
-                                        </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Localizador</label>
+                                        <input required value={fLoc} onChange={e=>setFLoc(e.target.value.toUpperCase())} type="text" placeholder="LOC-..." className="w-full bg-muted border-transparent rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:bg-background focus:ring-1 outline-none" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">SKU</label>
+                                        <input value={fSku} onChange={e=>setFSku(e.target.value.toUpperCase())} type="text" placeholder="SKU-..." className="w-full bg-muted border-transparent rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:bg-background focus:ring-1 outline-none" />
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium block">Descripción Detallada</label>
-                                    <textarea required value={fDesc} onChange={e=>setFDesc(e.target.value)} placeholder="Describe qué sucedió, evidencias visuales, y acciones iniciales tomadas..." className="w-full h-32 bg-muted border-transparent rounded-lg px-3 py-3 text-sm focus:border-blue-500 focus:bg-background focus:ring-1 focus:ring-blue-500 outline-none transition-all resize-none"></textarea>
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Nivel de Alerta</label>
+                                    <div className="flex gap-2 p-1 bg-muted rounded-xl">
+                                        {(['Bajo', 'Medio', 'Alto'] as const).map(n => (
+                                            <button 
+                                                key={n} type="button" onClick={() => setFNivel(n)}
+                                                className={cn("flex-1 py-1.5 text-sm font-medium rounded-lg transition-all", fNivel === n ? "bg-background shadow-sm" : "text-muted-foreground hover:bg-background/50")}
+                                            >
+                                                {n}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Novedad (Detalle)</label>
+                                    <textarea required value={fNovedad} onChange={e=>setFNovedad(e.target.value)} placeholder="Describe la incidencia o novedad encontrada..." className="w-full h-24 bg-muted border-transparent rounded-lg px-3 py-3 text-sm focus:border-blue-500 focus:bg-background focus:ring-1 outline-none resize-none"></textarea>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Adjunto Fotográfico</label>
+                                    <div className="w-full border-2 border-dashed border-slate-300 dark:border-white/10 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-not-allowed opacity-70">
+                                        <ImageIcon className="w-8 h-8 text-muted-foreground mb-2" />
+                                        <span className="text-sm font-medium">Subida de imágenes próximamente disponible</span>
+                                        <span className="text-xs text-muted-foreground mt-1">Conectando con Supabase Storage...</span>
+                                    </div>
                                 </div>
                             </form>
                         </div>
 
                         <div className="p-6 border-t bg-muted/30 shrink-0">
-                            <button type="submit" form="incident-form" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-blue-500/20">
-                                Registrar Incidencia
+                            <button type="submit" form="wpro-form" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-500/20">
+                                Emitir Novedad
                             </button>
                         </div>
                     </div>
                 </div>
             )}
+        </div>
+    )
+
+}
+
+// INNER COMPONENTS
+function TicketCard({ ticket, onStatusChange }: { ticket: TicketWPro, onStatusChange: (id: number, e: Estado) => void }) {
+    const getNivelColor = (n: Nivel) => {
+        switch(n) {
+            case 'Alto': return 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+            case 'Medio': return 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+            case 'Bajo': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+        }
+    }
+
+    return (
+        <div className="bg-card border dark:border-white/10 rounded-xl p-4 shadow-sm group">
+            <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono font-bold text-slate-500">#{ticket.id}</span>
+                    <div className={cn("text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border", getNivelColor(ticket.nivel))}>
+                        {ticket.nivel}
+                    </div>
+                </div>
+                {/* Render minimal actions based on status */}
+                {ticket.estado === 'PENDIENTE' && (
+                    <button onClick={() => onStatusChange(ticket.id, 'EN PROCESO')} className="text-xs font-bold bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 px-3 py-1 rounded-lg transition-colors">
+                        Procesar
+                    </button>
+                )}
+                {ticket.estado === 'EN PROCESO' && (
+                    <button onClick={() => onStatusChange(ticket.id, 'RESUELTO')} className="text-xs font-bold bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 px-3 py-1 rounded-lg transition-colors">
+                        Cerrar
+                    </button>
+                )}
+                {(ticket.estado === 'RESUELTO' || ticket.estado === 'FINALIZADO') && (
+                    <span className="text-xs font-medium text-emerald-500 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Terminado
+                    </span>
+                )}
+            </div>
+
+            <div className="space-y-1.5 mb-4">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                    <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                    {ticket.localizador}
+                </div>
+                {ticket.sku !== 'N/A' && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Tag className="w-3.5 h-3.5" />
+                        {ticket.sku}
+                    </div>
+                )}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Package className="w-3.5 h-3.5" />
+                    {ticket.sector} • {ticket.deposito}
+                </div>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 text-sm border dark:border-white/5 line-clamp-3">
+                <span className="font-bold text-rose-500 mr-2">Novedad:</span> 
+                {ticket.novedad}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground font-medium">
+                <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {new Date(ticket.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+                <div>{ticket.operario.split('@')[0]}</div>
+            </div>
         </div>
     )
 }

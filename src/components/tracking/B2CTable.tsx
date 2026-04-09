@@ -196,6 +196,60 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         [onUnsavedChange]
     )
 
+    const handleAutoSaveRow = useCallback(
+        async (row: B2CRowDraft, field: string, newValue: any) => {
+            if (row._isNew) {
+                return // Only auto-save existing rows
+            }
+
+            const { _localId, _saved, _isNew, ...payload } = row as any
+            
+            const savePayload = {
+                ...payload,
+                [field]: newValue,
+                task_count: parseInt(row.task_count) || 0,
+                pallet_count: parseInt(row.pallet_count) || 0,
+                pallets_dispatched: parseInt(row.pallets_dispatched) || 0,
+                status: payload.status || 'pending',
+                trip_type: 'b2c',
+                warehouse,
+                id: row._localId
+            }
+
+            try {
+                const savedTrip = await onSave(savePayload, false)
+                setRows((prev) => {
+                    const next = prev.map((r) => {
+                        if (r._localId !== row._localId) return r
+                        return { ...r, _localId: savedTrip.id, _saved: true, _isNew: false }
+                    })
+                    onUnsavedChange?.(next.some((r) => !r._saved))
+                    return next
+                })
+            } catch (error) {
+                console.error(`Error auto-guardando ${field}:`, error)
+                throw error
+            }
+        },
+        [onSave, warehouse, onUnsavedChange]
+    )
+
+    const toggleAndAutoSaveOperator = useCallback(
+        async (row: B2CRowDraft, operator: string) => {
+            const hasOp = row.operators.includes(operator)
+            const newOps = hasOp ? [] : [operator]
+            
+            // Local update
+            updateRow(row._localId, 'operators', newOps)
+            
+            // Auto save
+            if (!row._isNew) {
+                await handleAutoSaveRow({ ...row, operators: newOps }, 'operators', newOps)
+            }
+        },
+        [handleAutoSaveRow, updateRow]
+    )
+
     const addRow = useCallback(() => {
         const newRow = createEmptyB2CRow(currentUserId)
         setRows((prev) => [newRow, ...prev])
@@ -311,15 +365,12 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
     const removeRow = useCallback(
         async (localId: string) => {
-            console.log('B2CTable: removeRow called for localId:', localId)
             const row = rows.find(r => r._localId === localId)
-            console.log('B2CTable: Found row:', row)
 
             if (row?._saved) {
                 const confirmed = window.confirm('¿Deseás enviar este viaje al módulo de Borrado? Podrá ser eliminado definitivamente por un administrador.')
                 if (!confirmed) return
                 try {
-                    console.log('B2CTable: Calling onDelete for:', localId)
                     await onDelete(localId)
                     alert("Viaje enviado al módulo de Borrado")
                 } catch (e) {
@@ -374,7 +425,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         if (rowsToSave.length === 0) return
 
         try {
-            await Promise.all(rowsToSave.map(row => {
+            const savedResults = await Promise.all(rowsToSave.map(row => {
                 const { _localId, _saved, _isNew, ...payload } = row as any
                 if (!payload.task_count) payload.task_count = 0; else payload.task_count = Number(payload.task_count);
                 if (!payload.pallet_count) payload.pallet_count = 0; else payload.pallet_count = Number(payload.pallet_count);
@@ -402,22 +453,6 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
             alert("Error guardando los viajes")
         }
     }, [rows, onSave, onRefresh, onUnsavedChange, warehouse])
-
-    const toggleOperator = useCallback(
-        (localId: string, operator: string) => {
-            setRows((prev) => {
-                const next = prev.map((row) => {
-                    if (row._localId !== localId) return row
-                    const hasOp = row.operators.includes(operator)
-                    const newOps = hasOp ? [] : [operator]
-                    return { ...row, operators: newOps, _saved: false }
-                })
-                onUnsavedChange?.(next.some((r) => !r._saved))
-                return next
-            })
-        },
-        [onUnsavedChange]
-    )
 
     return (
         <div className="flex flex-col gap-4">
@@ -637,10 +672,11 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                 >
                                     <td className="p-2 align-middle">
                                         {editable ? (
-                                            <input
+                                            <AutoSaveInput
                                                 type="date"
                                                 value={row.date}
-                                                onChange={(e) => updateRow(row._localId, 'date', e.target.value)}
+                                                onChange={(newValue) => updateRow(row._localId, 'date', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRow(row, 'date', newValue)}
                                                 className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                             />
                                         ) : (
@@ -650,13 +686,11 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     <td className="p-2 align-middle">
                                         {editable ? (
-                                            <input
+                                            <AutoSaveInput
                                                 type="text"
                                                 value={row.trip_number}
-                                                onChange={(e) => {
-                                                    const val = e.target.value.replace(/\D/g, '').slice(0, 6)
-                                                    updateRow(row._localId, 'trip_number', val)
-                                                }}
+                                                onChange={(newValue) => updateRow(row._localId, 'trip_number', newValue.replace(/\D/g, '').slice(0, 6))}
+                                                onAutoSave={(newValue) => handleAutoSaveRow(row, 'trip_number', newValue)}
                                                 placeholder="000000"
                                                 maxLength={6}
                                                 className="w-[80px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
@@ -668,16 +702,17 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     <td className="p-2 align-middle">
                                         {editable ? (
-                                            <select
+                                            <AutoSaveSelect
                                                 value={row.carrier}
-                                                onChange={(e) => updateRow(row._localId, 'carrier', e.target.value)}
+                                                onChange={(newValue) => updateRow(row._localId, 'carrier', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRow(row, 'carrier', newValue)}
                                                 className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                             >
                                                 <option value="">Seleccionar</option>
                                                 {MOCK_CARRIERS_B2C.map((c) => (
                                                     <option key={c} value={c}>{c}</option>
                                                 ))}
-                                            </select>
+                                            </AutoSaveSelect>
                                         ) : (
                                             <span className="text-sm font-medium px-2">{row.carrier}</span>
                                         )}
@@ -685,10 +720,11 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     <td className="p-2 align-middle">
                                         {editable ? (
-                                            <input
+                                            <AutoSaveInput
                                                 type="text"
                                                 value={row.retira || ''}
-                                                onChange={(e) => updateRow(row._localId, 'retira', e.target.value)}
+                                                onChange={(newValue) => updateRow(row._localId, 'retira', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRow(row, 'retira', newValue)}
                                                 placeholder="Retira"
                                                 className="w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                             />
@@ -701,10 +737,11 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     <td className="p-2 align-middle">
                                         {editable ? (
-                                            <input
+                                            <AutoSaveInput
                                                 type="text"
                                                 value={row.vehicle_plate || ''}
-                                                onChange={(e) => updateRow(row._localId, 'vehicle_plate', e.target.value.toUpperCase())}
+                                                onChange={(newValue) => updateRow(row._localId, 'vehicle_plate', newValue.toUpperCase())}
+                                                onAutoSave={(newValue) => handleAutoSaveRow(row, 'vehicle_plate', newValue)}
                                                 placeholder="AB 123 CD"
                                                 className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
                                             />
@@ -720,7 +757,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                             <OperatorMultiSelect
                                                 selected={row.operators}
                                                 warehouse={warehouse}
-                                                onToggle={(op) => toggleOperator(row._localId, op)}
+                                                onToggle={(op) => toggleAndAutoSaveOperator(row, op)}
                                             />
                                         ) : (
                                             <div className="flex flex-wrap gap-1">
@@ -735,10 +772,11 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
-                                            <input
+                                            <AutoSaveInput
                                                 type="text"
                                                 value={row.pallet_count}
-                                                onChange={(e) => updateRow(row._localId, 'pallet_count', e.target.value.replace(/\D/g, '').slice(0, 2))}
+                                                onChange={(newValue) => updateRow(row._localId, 'pallet_count', newValue.replace(/\D/g, '').slice(0, 2))}
+                                                onAutoSave={(newValue) => handleAutoSaveRow(row, 'pallet_count', parseInt(newValue) || 0)}
                                                 maxLength={2}
                                                 className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block"
                                             />
@@ -749,44 +787,12 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
-                                            <BultosAutoSaveInput
-                                                rowId={row._localId}
+                                            <AutoSaveInput
                                                 value={row.task_count}
-                                                onChange={(newValue) => updateRow(row._localId, 'task_count', newValue)}
-                                                onAutoSave={async (newValue) => {
-                                                    if (row._isNew) {
-                                                        throw new Error('Primero guarde la fila completa')
-                                                    }
-
-                                                    const { _localId, _saved, _isNew, ...payload } = row as any
-                                                    
-                                                    const savePayload = {
-                                                        ...payload,
-                                                        task_count: parseInt(newValue) || 0,
-                                                        pallet_count: parseInt(row.pallet_count) || 0,
-                                                        pallets_dispatched: parseInt(row.pallets_dispatched) || 0,
-                                                        status: payload.status || 'pending',
-                                                        trip_type: 'b2c',
-                                                        warehouse,
-                                                        id: row._localId
-                                                    }
-
-                                                    try {
-                                                        const savedTrip = await onSave(savePayload, false)
-                                                        
-                                                        setRows((prev) => {
-                                                            const next = prev.map((r) => {
-                                                                if (r._localId !== row._localId) return r
-                                                                return { ...r, _localId: savedTrip.id, _saved: true, _isNew: false }
-                                                            })
-                                                            onUnsavedChange?.(next.some((r) => !r._saved))
-                                                            return next
-                                                        })
-                                                    } catch (error) {
-                                                        console.error('Error auto-guardando bultos:', error)
-                                                        throw error
-                                                    }
-                                                }}
+                                                onChange={(newValue) => updateRow(row._localId, 'task_count', newValue.replace(/\D/g, '').slice(0, 4))}
+                                                onAutoSave={(newValue) => handleAutoSaveRow(row, 'task_count', parseInt(newValue) || 0)}
+                                                maxLength={4}
+                                                className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block"
                                             />
                                         ) : (
                                             <span className="text-sm">{row.task_count}</span>
@@ -795,16 +801,17 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     <td className="p-2 align-middle">
                                         {editable ? (
-                                            <select
+                                            <AutoSaveSelect
                                                 value={row.status}
-                                                onChange={(e) => updateRow(row._localId, 'status', e.target.value)}
+                                                onChange={(newValue) => updateRow(row._localId, 'status', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRow(row, 'status', newValue)}
                                                 className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-black focus:outline-none focus:ring-1 focus:ring-ring"
                                             >
                                                 <option value="">Seleccionar</option>
                                                 {Object.entries(TRIP_STATUS_LABELS).map(([key, label]) => (
                                                     <option key={key} value={key}>{label}</option>
                                                 ))}
-                                            </select>
+                                            </AutoSaveSelect>
                                         ) : (
                                             <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${row.status ? 'bg-muted/50' : ''
                                                 }`}>
@@ -815,9 +822,11 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
-                                            <input
-                                                type="text" value={row.pallets_dispatched}
-                                                onChange={(e) => updateRow(row._localId, 'pallets_dispatched', e.target.value.replace(/\D/g, '').slice(0, 2))}
+                                            <AutoSaveInput
+                                                type="text"
+                                                value={row.pallets_dispatched}
+                                                onChange={(newValue) => updateRow(row._localId, 'pallets_dispatched', newValue.replace(/\D/g, '').slice(0, 2))}
+                                                onAutoSave={(newValue) => handleAutoSaveRow(row, 'pallets_dispatched', parseInt(newValue) || 0)}
                                                 maxLength={2}
                                                 className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block"
                                             />
@@ -828,16 +837,17 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     <td className="p-2 align-middle">
                                         {editable ? (
-                                            <select
+                                            <AutoSaveSelect
                                                 value={row.labeler}
-                                                onChange={(e) => updateRow(row._localId, 'labeler', e.target.value)}
+                                                onChange={(newValue) => updateRow(row._localId, 'labeler', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRow(row, 'labeler', newValue)}
                                                 className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                             >
                                                 <option value="">Seleccionar</option>
                                                 {MOCK_LABELERS.map((l) => (
                                                     <option key={l} value={l}>{l}</option>
                                                 ))}
-                                            </select>
+                                            </AutoSaveSelect>
                                         ) : (
                                             <span className="text-sm px-2">{row.labeler}</span>
                                         )}
@@ -887,45 +897,161 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     )
 }
 
+function SaveIndicator({ status, error }: { status: string, error: string | null }) {
+    return (
+        <div className="flex items-center gap-1 min-w-[12px]">
+            {status === 'saving' && (
+                <div className="h-3 w-3 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" />
+            )}
+            {status === 'saved' && (
+                <span className="text-xs text-green-600 font-bold" title="Guardado">✓</span>
+            )}
+            {status === 'error' && (
+                <span className="text-xs text-red-600 font-bold cursor-help" title={error || 'Error'}>!</span>
+            )}
+        </div>
+    )
+}
+
+function AutoSaveInput({
+  value,
+  onChange,
+  onAutoSave,
+  className,
+  placeholder,
+  maxLength,
+  type = 'text',
+  title
+}: {
+  value: string
+  onChange: (value: string) => void
+  onAutoSave: (value: string) => Promise<void>
+  className?: string
+  placeholder?: string
+  maxLength?: number
+  type?: string
+  title?: string
+}) {
+  const { status, error } = useAutoSaveField({
+    value,
+    onSave: async (newValue) => {
+      await onAutoSave(newValue)
+    },
+    debounceMs: 1500,
+  })
+
+  return (
+    <div className="relative inline-flex items-center gap-1.5 w-full">
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        maxLength={maxLength}
+        placeholder={placeholder}
+        disabled={status === 'saving'}
+        className={`${className} transition-all disabled:opacity-50`}
+        title={error ? `Error: ${error}` : title || 'Autoguardado automático'}
+      />
+      <SaveIndicator status={status} error={error} />
+    </div>
+  )
+}
+
+function AutoSaveSelect({
+  value,
+  onChange,
+  onAutoSave,
+  className,
+  children,
+  title
+}: {
+  value: string
+  onChange: (value: string) => void
+  onAutoSave: (value: string) => Promise<void>
+  className?: string
+  children: React.ReactNode
+  title?: string
+}) {
+  const { status, error } = useAutoSaveField({
+    value,
+    onSave: async (newValue) => {
+      await onAutoSave(newValue)
+    },
+    debounceMs: 500,
+  })
+
+  return (
+    <div className="relative inline-flex items-center gap-1.5 w-full">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={status === 'saving'}
+        className={`${className} transition-all disabled:opacity-50`}
+        title={error ? `Error: ${error}` : title || 'Autoguardado automático'}
+      >
+        {children}
+      </select>
+      <SaveIndicator status={status} error={error} />
+    </div>
+  )
+}
+
 function OperatorMultiSelect({
     selected,
     warehouse,
-    onToggle
+    onToggle,
 }: {
-    selected: string[];
-    warehouse: string;
+    selected: string[]
+    warehouse: string
     onToggle: (op: string) => void
 }) {
+    const { status, error } = useAutoSaveField({
+        value: selected,
+        onSave: async () => {},
+        debounceMs: 500
+    })
+
     const [isOpen, setIsOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
-    const allOperators = getOperatorsForContext(warehouse)
+    const dropdownRef = useRef<HTMLDivElement>(null)
 
-    const filteredOperators = allOperators.filter(op =>
+    const operators = getOperatorsForContext(warehouse as any)
+    const filteredOperators = operators.filter(op =>
         op.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
+
     return (
-        <div className="relative">
-            <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex w-full min-w-[120px] items-center justify-between rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            >
-                <div className="flex-1 text-left truncate">
-                    {selected.length === 0 ? (
-                        <span className="text-muted-foreground">Seleccionar...</span>
-                    ) : (
-                        <span className="truncate font-medium">{selected[0]}</span>
-                    )}
-                </div>
-                <ChevronDown className="h-4 w-4 shrink-0 opacity-40 ml-1" />
-            </button>
+        <div className="relative w-full" ref={dropdownRef}>
+            <div className="flex items-center gap-1.5">
+                <button
+                    type="button"
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    <span className="truncate">
+                        {selected.length === 0 ? 'Seleccionar...' : `${selected.length} seleccionados`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                </button>
+                <SaveIndicator status={status} error={error} />
+            </div>
+
             {isOpen && (
                 <>
-                    <div className="fixed inset-0 z-40" onClick={() => { setIsOpen(false); setSearchTerm(''); }} />
-                    <div className="absolute z-50 mt-1 w-64 rounded-md border bg-popover p-2 shadow-xl animate-in fade-in zoom-in-95 duration-100">
+                    <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsOpen(false)} />
+                    <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border bg-popover p-2 text-popover-foreground shadow-md animate-in fade-in zoom-in-95">
                         <div className="relative mb-2">
-                            <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                            <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
                             <input
                                 autoFocus
                                 type="text"
@@ -942,11 +1068,7 @@ function OperatorMultiSelect({
                                     <button
                                         key={op}
                                         type="button"
-                                        onClick={() => {
-                                            onToggle(op);
-                                            setIsOpen(false);
-                                            setSearchTerm('');
-                                        }}
+                                        onClick={() => onToggle(op)}
                                         className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm transition-all hover:bg-accent ${selected.includes(op) ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground'
                                             }`}
                                     >
@@ -963,72 +1085,6 @@ function OperatorMultiSelect({
                     </div>
                 </>
             )}
-            {selected.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                    {selected.map((op) => (
-                        <span key={op} className="inline-flex items-center rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium">
-                            {op.split(' ')[0]}
-                        </span>
-                    ))}
-                </div>
-            )}
         </div>
     )
-}
-
-function BultosAutoSaveInput({
-  rowId,
-  value,
-  onChange,
-  onAutoSave,
-}: {
-  rowId: string
-  value: string
-  onChange: (value: string) => void
-  onAutoSave: (value: string) => Promise<void>
-}) {
-  const { status, error } = useAutoSaveField({
-    value,
-    onSave: async (newValue) => {
-      await onAutoSave(newValue)
-    },
-    debounceMs: 1500,
-  })
-
-  return (
-    <div className="relative inline-flex items-center gap-2">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => {
-          const newVal = e.target.value.replace(/\D/g, '').slice(0, 4)
-          onChange(newVal)
-        }}
-        maxLength={4}
-        disabled={status === 'saving'}
-        className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 transition-all"
-        title={error ? `Error: ${error}` : 'Autoguardado automático'}
-      />
-      
-      <div className="flex items-center gap-1 min-w-[24px]">
-        {status === 'saving' && (
-          <div 
-            className="h-3 w-3 rounded-full border-2 border-transparent border-t-blue-500 animate-spin"
-            title="Guardando..."
-          />
-        )}
-        {status === 'saved' && (
-          <span className="text-xs text-green-600 font-bold" title="Guardado">✓</span>
-        )}
-        {status === 'error' && (
-          <span 
-            className="text-xs text-red-600 font-bold cursor-help" 
-            title={error || 'Error al guardar'}
-          >
-            !
-          </span>
-        )}
-      </div>
-    </div>
-  )
 }

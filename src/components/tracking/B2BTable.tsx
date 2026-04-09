@@ -267,12 +267,57 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         (localId: string, field: keyof B2BRowDraft, value: unknown) => {
             setImportedRows((prev) =>
                 prev.map((row) => {
-                    if (row._localId !== localId) return row
-                    return { ...row, [field]: value }
+    const handleAutoSaveRowB2B = useCallback(
+        async (row: B2BRowDraft, field: string, newValue: any) => {
+            if (row._isNew) {
+                return // Only auto-save existing rows
+            }
+
+            const { _localId, _saved, _isNew, ...payload } = row as any
+            
+            const savePayload = {
+                ...payload,
+                [field]: newValue,
+                task_count: parseInt(row.task_count) || 0,
+                pallets: parseInt(row.pallets) || 0,
+                status: payload.status || 'pending',
+                trip_type: 'b2b',
+                warehouse,
+                id: row._localId
+            }
+
+            try {
+                const savedTrip = await onSave(savePayload, false)
+                setRows((prev) => {
+                    const next = prev.map((r) => {
+                        if (r._localId !== row._localId) return r
+                        return { ...r, _localId: savedTrip.id, _saved: true, _isNew: false }
+                    })
+                    onUnsavedChange?.(next.some((r) => !r._saved) || importedRows.length > 0)
+                    return next
                 })
-            )
+            } catch (error) {
+                console.error(`Error auto-guardando ${field}:`, error)
+                throw error
+            }
         },
-        []
+        [onSave, warehouse, onUnsavedChange, importedRows]
+    )
+
+    const toggleAndAutoSaveOperatorB2B = useCallback(
+        async (row: B2BRowDraft, operator: string) => {
+            const hasOp = row.operators.includes(operator)
+            const newOps = hasOp ? [] : [operator]
+            
+            // Local update
+            updateRow(row._localId, 'operators', newOps)
+            
+            // Auto save
+            if (!row._isNew) {
+                await handleAutoSaveRowB2B({ ...row, operators: newOps }, 'operators', newOps)
+            }
+        },
+        [handleAutoSaveRowB2B, updateRow]
     )
 
     const addRow = useCallback(() => {
@@ -346,7 +391,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
         if (rowsToSave.length === 0) return
 
         try {
-            await Promise.all(rowsToSave.map(row => {
+            const savedResults = await Promise.all(rowsToSave.map(row => {
                 const { _localId, _saved, _isNew, ...payload } = row as any
                 if (!payload.task_count) payload.task_count = 0; else payload.task_count = Number(payload.task_count);
                 if (!payload.pallets) payload.pallets = 0; else payload.pallets = Number(payload.pallets);
@@ -376,20 +421,29 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
     const toggleOperator = useCallback(
         (localId: string, operator: string, isImported: boolean) => {
-            const setter = isImported ? setImportedRows : setRows
-            setter((prev) => {
-                const next = prev.map((row) => {
-                    if (row._localId !== localId) return row
-                    const hasOp = row.operators.includes(operator)
-                    // Selección única: si ya estaba se quita, si no se reemplaza
-                    const newOps = hasOp ? [] : [operator]
-                    return { ...row, operators: newOps, ...(isImported ? {} : { _saved: false }) }
+            if (isImported) {
+                setImportedRows((prev) => {
+                    return prev.map((row) => {
+                        if (row._localId !== localId) return row
+                        const hasOp = row.operators.includes(operator)
+                        const newOps = hasOp ? [] : [operator]
+                        return { ...row, operators: newOps }
+                    })
                 })
-                if (!isImported) onUnsavedChange?.(next.some((r) => !r._saved) || importedRows.length > 0)
-                return next
-            })
+            } else {
+                setRows((prev) => {
+                    const next = prev.map((row) => {
+                        if (row._localId !== localId) return row
+                        const hasOp = row.operators.includes(operator)
+                        const newOps = hasOp ? [] : [operator]
+                        return { ...row, operators: newOps, _saved: false }
+                    })
+                    onUnsavedChange?.(next.some((r) => !r._saved) || importedRows.length > 0)
+                    return next
+                })
+            }
         },
-        [onUnsavedChange, importedRows]
+        [importedRows, onUnsavedChange]
     )
 
     return (
@@ -571,14 +625,43 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                             return (
                                 <tr key={row._localId} className={`border-b transition-colors hover:bg-muted/20 ${rowBorder} ${!editable ? 'opacity-75' : ''}`}>
-                                    <td className="p-2">{editable ? <input type="date" value={row.date} onChange={(e) => updateRow(row._localId, 'date', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm px-2">{formatDate(row.date)}</span>}</td>
-                                    <td className="p-2">{editable ? <select value={row.carrier} onChange={(e) => updateRow(row._localId, 'carrier', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"><option value="">Seleccionar</option>{MOCK_CARRIERS_B2B.map((c) => <option key={c} value={c}>{c}</option>)}</select> : <span className="text-sm font-medium px-2">{row.carrier}</span>}</td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <AutoSaveInput
+                                                type="date"
+                                                value={row.date}
+                                                onChange={(newValue) => updateRow(row._localId, 'date', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'date', newValue)}
+                                                className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <span className="text-sm px-2">{formatDate(row.date)}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <AutoSaveSelect
+                                                value={row.carrier}
+                                                onChange={(newValue) => updateRow(row._localId, 'carrier', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'carrier', newValue)}
+                                                className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                            >
+                                                <option value="">Seleccionar</option>
+                                                {MOCK_CARRIERS_B2B.map((c) => (
+                                                    <option key={c} value={c}>{c}</option>
+                                                ))}
+                                            </AutoSaveSelect>
+                                        ) : (
+                                            <span className="text-sm font-medium px-2">{row.carrier}</span>
+                                        )}
+                                    </td>
                                     <td className="p-2 align-middle">
                                         {editable ? (
-                                            <input
+                                            <AutoSaveInput
                                                 type="text"
                                                 value={row.retira || ''}
-                                                onChange={(e) => updateRow(row._localId, 'retira', e.target.value)}
+                                                onChange={(newValue) => updateRow(row._localId, 'retira', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'retira', newValue)}
                                                 placeholder="Retira"
                                                 className="w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                             />
@@ -588,62 +671,189 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                             </div>
                                         )}
                                     </td>
-                                    <td className="p-2">{editable ? <input type="text" value={row.vehicle_plate} onChange={(e) => updateRow(row._localId, 'vehicle_plate', e.target.value.toUpperCase())} placeholder="AB 123 CD" className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.vehicle_plate}</span>}</td>
-                                    <td className="p-2">{editable ? <input type="text" value={row.trip_number} onChange={(e) => updateRow(row._localId, 'trip_number', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Nro" maxLength={6} className="w-[80px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.trip_number}</span>}</td>
-                                    <td className="p-2">{editable ? <input type="text" value={row.client} onChange={(e) => updateRow(row._localId, 'client', e.target.value)} placeholder="Nombre" className="w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-medium px-2">{row.client}</span>}</td>
-                                    <td className="p-2">{editable ? <input type="text" value={row.client_shift} onChange={(e) => updateRow(row._localId, 'client_shift', e.target.value)} placeholder="Turno" className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm px-2">{row.client_shift}</span>}</td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <AutoSaveInput
+                                                type="text"
+                                                value={row.vehicle_plate}
+                                                onChange={(newValue) => updateRow(row._localId, 'vehicle_plate', newValue.toUpperCase())}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'vehicle_plate', newValue)}
+                                                placeholder="AB 123 CD"
+                                                className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <span className="text-sm font-mono px-2">{row.vehicle_plate}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <AutoSaveInput
+                                                type="text"
+                                                value={row.trip_number}
+                                                onChange={(newValue) => updateRow(row._localId, 'trip_number', newValue.replace(/\D/g, '').slice(0, 6))}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'trip_number', newValue)}
+                                                placeholder="Nro"
+                                                maxLength={6}
+                                                className="w-[80px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <span className="text-sm font-mono px-2">{row.trip_number}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <AutoSaveInput
+                                                type="text"
+                                                value={row.client}
+                                                onChange={(newValue) => updateRow(row._localId, 'client', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'client', newValue)}
+                                                placeholder="Nombre"
+                                                className="w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <span className="text-sm font-medium px-2">{row.client}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <AutoSaveInput
+                                                type="text"
+                                                value={row.client_shift}
+                                                onChange={(newValue) => updateRow(row._localId, 'client_shift', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'client_shift', newValue)}
+                                                placeholder="Turno"
+                                                className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <span className="text-sm px-2">{row.client_shift}</span>
+                                        )}
+                                    </td>
                                     <td className="p-2 text-center">
                                         {editable ? (
-                                            <BultosAutoSaveInputB2B
-                                                rowId={row._localId}
+                                            <AutoSaveInput
                                                 value={row.task_count}
-                                                onChange={(newValue) => updateRow(row._localId, 'task_count', newValue)}
-                                                onAutoSave={async (newValue) => {
-                                                    if (row._isNew) {
-                                                        throw new Error('Primero guarde la fila completa')
-                                                    }
-
-                                                    const { _localId, _saved, _isNew, ...payload } = row as any
-                                                    
-                                                    const savePayload = {
-                                                        ...payload,
-                                                        task_count: parseInt(newValue) || 0,
-                                                        pallets: parseInt(row.pallets) || 0,
-                                                        status: payload.status || 'pending',
-                                                        trip_type: 'b2b',
-                                                        warehouse,
-                                                        id: row._localId
-                                                    }
-
-                                                    try {
-                                                        const savedTrip = await onSave(savePayload, false)
-                                                        
-                                                        setRows((prev) => {
-                                                            const next = prev.map((r) => {
-                                                                if (r._localId !== row._localId) return r
-                                                                return { ...r, _localId: savedTrip.id, _saved: true, _isNew: false }
-                                                            })
-                                                            onUnsavedChange?.(next.some((r) => !r._saved) || importedRows.length > 0)
-                                                            return next
-                                                        })
-                                                    } catch (error) {
-                                                        console.error('Error auto-guardando bultos:', error)
-                                                        throw error
-                                                    }
-                                                }}
+                                                onChange={(newValue) => updateRow(row._localId, 'task_count', newValue.replace(/\D/g, '').slice(0, 4))}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'task_count', parseInt(newValue) || 0)}
+                                                maxLength={4}
+                                                className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block"
                                             />
                                         ) : (
                                             <span className="text-sm">{row.task_count}</span>
                                         )}
                                     </td>
-                                    <td className="p-2">{editable ? <input type="text" value={row.port} onChange={(e) => updateRow(row._localId, 'port', e.target.value)} placeholder="Puerto" className="w-[70px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.port}</span>}</td>
-                                    <td className="p-2 text-center">{editable ? <input type="text" value={row.pallets} onChange={(e) => updateRow(row._localId, 'pallets', e.target.value.replace(/\D/g, '').slice(0, 2))} maxLength={2} className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block" /> : <span className="text-sm font-semibold">{row.pallets}</span>}</td>
-                                    <td className="p-2">{editable ? <OperatorMultiSelect selected={row.operators} warehouse={warehouse} onToggle={(op) => toggleOperator(row._localId, op, false)} /> : <div className="flex flex-wrap gap-1">{row.operators.map((op) => <span key={op} className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium">{op.split(' ')[0]}</span>)}</div>}</td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <AutoSaveInput
+                                                type="text"
+                                                value={row.port}
+                                                onChange={(newValue) => updateRow(row._localId, 'port', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'port', newValue)}
+                                                placeholder="Puerto"
+                                                className="w-[70px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <span className="text-sm font-mono px-2">{row.port}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2 text-center">
+                                        {editable ? (
+                                            <AutoSaveInput
+                                                type="text"
+                                                value={row.pallets}
+                                                onChange={(newValue) => updateRow(row._localId, 'pallets', newValue.replace(/\D/g, '').slice(0, 2))}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'pallets', parseInt(newValue) || 0)}
+                                                maxLength={2}
+                                                className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block"
+                                            />
+                                        ) : (
+                                            <span className="text-sm font-semibold">{row.pallets}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <OperatorMultiSelect
+                                                selected={row.operators}
+                                                warehouse={warehouse}
+                                                onToggle={(op) => toggleAndAutoSaveOperatorB2B(row, op)}
+                                            />
+                                        ) : (
+                                            <div className="flex flex-wrap gap-1">
+                                                {row.operators.map((op) => (
+                                                    <span key={op} className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground border">
+                                                        {op.split(' ')[0]}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </td>
 
-                                    <td className="p-2">{editable ? <input type="text" value={row.detail} onChange={(e) => updateRow(row._localId, 'detail', e.target.value)} placeholder="Detalle..." className="w-[130px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm truncate max-w-[130px] block" title={row.detail}>{row.detail || '—'}</span>}</td>
-                                    <td className="p-2">{editable ? <input type="text" value={row.comments} onChange={(e) => updateRow(row._localId, 'comments', e.target.value)} placeholder="Comentarios..." className="w-[130px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm truncate max-w-[130px] block" title={row.comments}>{row.comments || '—'}</span>}</td>
-                                    <td className="p-2 text-center">{editable ? <button onClick={() => updateRow(row._localId, 'bulk_cargo', !row.bulk_cargo)} className={`mx-auto flex h-7 w-7 items-center justify-center rounded-md border transition-colors ${row.bulk_cargo ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-transparent border-input text-muted-foreground'}`}>{row.bulk_cargo ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}</button> : row.bulk_cargo ? <Check className="h-4 w-4 text-emerald-400 mx-auto" /> : <X className="h-4 w-4 text-muted-foreground mx-auto" />}</td>
-                                    <td className="p-2">{editable ? <select value={row.status} onChange={(e) => updateRow(row._localId, 'status', e.target.value)} className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-black focus:outline-none focus:ring-1 focus:ring-ring"><option value="">Seleccionar</option>{Object.entries(TRIP_STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select> : <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold bg-muted/60 text-slate-700">{row.status ? TRIP_STATUS_LABELS[row.status as TripStatus] : '—'}</span>}</td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <AutoSaveInput
+                                                type="text"
+                                                value={row.detail}
+                                                onChange={(newValue) => updateRow(row._localId, 'detail', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'detail', newValue)}
+                                                placeholder="Detalle..."
+                                                className="w-[130px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <span className="text-sm truncate max-w-[130px] block" title={row.detail}>{row.detail || '—'}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <AutoSaveInput
+                                                type="text"
+                                                value={row.comments}
+                                                onChange={(newValue) => updateRow(row._localId, 'comments', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'comments', newValue)}
+                                                placeholder="Comentarios..."
+                                                className="w-[130px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                            />
+                                        ) : (
+                                            <span className="text-sm truncate max-w-[130px] block" title={row.comments}>{row.comments || '—'}</span>
+                                        )}
+                                    </td>
+                                    <td className="p-2 text-center">
+                                        {editable ? (
+                                            <div className="flex items-center gap-1 mx-auto justify-center">
+                                                <button
+                                                    onClick={async () => {
+                                                        const newVal = !row.bulk_cargo
+                                                        updateRow(row._localId, 'bulk_cargo', newVal)
+                                                        if (!row._isNew) {
+                                                            await handleAutoSaveRowB2B(row, 'bulk_cargo', newVal)
+                                                        }
+                                                    }}
+                                                    className={`flex h-7 w-7 items-center justify-center rounded-md border transition-colors ${row.bulk_cargo ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400' : 'bg-transparent border-input text-muted-foreground'}`}
+                                                >
+                                                    {row.bulk_cargo ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            row.bulk_cargo ? <Check className="h-4 w-4 text-emerald-400 mx-auto" /> : <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                                        )}
+                                    </td>
+                                    <td className="p-2">
+                                        {editable ? (
+                                            <AutoSaveSelect
+                                                value={row.status}
+                                                onChange={(newValue) => updateRow(row._localId, 'status', newValue)}
+                                                onAutoSave={(newValue) => handleAutoSaveRowB2B(row, 'status', newValue)}
+                                                className="w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-black focus:outline-none focus:ring-1 focus:ring-ring"
+                                            >
+                                                <option value="">Seleccionar</option>
+                                                {Object.entries(TRIP_STATUS_LABELS).map(([key, label]) => (
+                                                    <option key={key} value={key}>{label}</option>
+                                                ))}
+                                            </AutoSaveSelect>
+                                        ) : (
+                                            <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold bg-muted/60 text-slate-700">
+                                                {row.status ? TRIP_STATUS_LABELS[row.status as TripStatus] : '—'}
+                                            </span>
+                                        )}
+                                    </td>
                                     <td className="p-2">
                                         <div className="flex items-center justify-center gap-1">
                                              {!editable && <span title="Bloqueada — +48hs"><Lock className="h-4 w-4 text-muted-foreground" /></span>}
@@ -767,16 +977,40 @@ function OperatorMultiSelect({
     )
 }
 
-function BultosAutoSaveInputB2B({
-  rowId,
+function SaveIndicator({ status, error }: { status: string, error: string | null }) {
+    return (
+        <div className="flex items-center gap-1 min-w-[12px]">
+            {status === 'saving' && (
+                <div className="h-3 w-3 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" />
+            )}
+            {status === 'saved' && (
+                <span className="text-xs text-green-600 font-bold" title="Guardado">✓</span>
+            )}
+            {status === 'error' && (
+                <span className="text-xs text-red-600 font-bold cursor-help" title={error || 'Error'}>!</span>
+            )}
+        </div>
+    )
+}
+
+function AutoSaveInput({
   value,
   onChange,
   onAutoSave,
+  className,
+  placeholder,
+  maxLength,
+  type = 'text',
+  title
 }: {
-  rowId: string
   value: string
   onChange: (value: string) => void
   onAutoSave: (value: string) => Promise<void>
+  className?: string
+  placeholder?: string
+  maxLength?: number
+  type?: string
+  title?: string
 }) {
   const { status, error } = useAutoSaveField({
     value,
@@ -787,39 +1021,150 @@ function BultosAutoSaveInputB2B({
   })
 
   return (
-    <div className="relative inline-flex items-center gap-2">
+    <div className="relative inline-flex items-center gap-1.5 w-full">
       <input
-        type="text"
+        type={type}
         value={value}
-        onChange={(e) => {
-          const newVal = e.target.value.replace(/\D/g, '').slice(0, 4)
-          onChange(newVal)
-        }}
-        maxLength={4}
+        onChange={(e) => onChange(e.target.value)}
+        maxLength={maxLength}
+        placeholder={placeholder}
         disabled={status === 'saving'}
-        className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 transition-all"
-        title={error ? `Error: ${error}` : 'Autoguardado automático'}
+        className={`${className} transition-all disabled:opacity-50`}
+        title={error ? `Error: ${error}` : title || 'Autoguardado automático'}
       />
-      
-      <div className="flex items-center gap-1 min-w-[24px]">
-        {status === 'saving' && (
-          <div 
-            className="h-3 w-3 rounded-full border-2 border-transparent border-t-blue-500 animate-spin"
-            title="Guardando..."
-          />
-        )}
-        {status === 'saved' && (
-          <span className="text-xs text-green-600 font-bold" title="Guardado">✓</span>
-        )}
-        {status === 'error' && (
-          <span 
-            className="text-xs text-red-600 font-bold cursor-help" 
-            title={error || 'Error al guardar'}
-          >
-            !
-          </span>
-        )}
-      </div>
+      <SaveIndicator status={status} error={error} />
     </div>
   )
+}
+
+function AutoSaveSelect({
+  value,
+  onChange,
+  onAutoSave,
+  className,
+  children,
+  title
+}: {
+  value: string
+  onChange: (value: string) => void
+  onAutoSave: (value: string) => Promise<void>
+  className?: string
+  children: React.ReactNode
+  title?: string
+}) {
+  const { status, error } = useAutoSaveField({
+    value,
+    onSave: async (newValue) => {
+      await onAutoSave(newValue)
+    },
+    debounceMs: 500,
+  })
+
+  return (
+    <div className="relative inline-flex items-center gap-1.5 w-full">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={status === 'saving'}
+        className={`${className} transition-all disabled:opacity-50`}
+        title={error ? `Error: ${error}` : title || 'Autoguardado automático'}
+      >
+        {children}
+      </select>
+      <SaveIndicator status={status} error={error} />
+    </div>
+  )
+}
+
+function OperatorMultiSelect({
+    selected,
+    warehouse,
+    onToggle,
+}: {
+    selected: string[]
+    warehouse: Warehouse
+    onToggle: (op: string) => void
+}) {
+    const { status, error } = useAutoSaveField({
+        value: selected,
+        onSave: async () => {},
+        debounceMs: 500
+    })
+
+    const [isOpen, setIsOpen] = useState(false)
+    const [searchTerm, setSearchTerm] = useState('')
+    const dropdownRef = useRef<HTMLDivElement>(null)
+
+    const operators = getOperatorsForContext(warehouse)
+    const filteredOperators = operators.filter(op =>
+        op.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
+
+    return (
+        <div className="relative w-full" ref={dropdownRef}>
+            <div className="flex items-center gap-1.5">
+                <button
+                    type="button"
+                    onClick={() => setIsOpen(!isOpen)}
+                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    <span className="truncate">
+                        {selected.length === 0 ? 'Seleccionar...' : `${selected.length} seleccionados`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                </button>
+                <SaveIndicator status={status} error={error} />
+            </div>
+
+            {isOpen && (
+                <>
+                    <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsOpen(false)} />
+                    <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border bg-popover p-2 text-popover-foreground shadow-md animate-in fade-in zoom-in-95">
+                        <div className="relative mb-2">
+                            <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
+                            <input
+                                autoFocus
+                                type="text"
+                                placeholder="Buscar por nombre..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full rounded-md border border-input bg-transparent py-2 pl-7 pr-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                        </div>
+
+                        <div className="max-h-64 overflow-y-auto space-y-0.5 pr-1 custom-scrollbar">
+                            {filteredOperators.length > 0 ? (
+                                filteredOperators.map((op) => (
+                                    <button
+                                        key={op}
+                                        type="button"
+                                        onClick={() => onToggle(op)}
+                                        className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm transition-all hover:bg-accent ${selected.includes(op) ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground'
+                                            }`}
+                                    >
+                                        <span className="truncate">{op}</span>
+                                        {selected.includes(op) && <Check className="h-4 w-4 shrink-0" />}
+                                    </button>
+                                ))
+                            ) : (
+                                <div className="py-4 text-center text-xs text-muted-foreground italic">
+                                    No se encontraron operarios
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
+    )
 }

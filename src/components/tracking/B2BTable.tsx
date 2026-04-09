@@ -38,12 +38,12 @@ export interface B2BRowDraft {
     retira?: string
 }
 
-function createEmptyB2BRow(): B2BRowDraft {
+function createEmptyB2BRow(userId: string): B2BRowDraft {
     return {
         _localId: crypto.randomUUID(),
         _saved: false,
         _isNew: true,
-        created_by: '',
+        created_by: userId,
         created_at: new Date().toISOString(),
         date: new Date().toISOString().split('T')[0],
         carrier: '', vehicle_plate: '', trip_number: '', client: '', client_shift: '',
@@ -321,8 +321,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
     )
 
     const addRow = useCallback(() => {
-        const newRow = createEmptyB2BRow()
-        newRow.created_by = currentUserId
+        const newRow = createEmptyB2BRow(currentUserId)
         setRows((prev) => [newRow, ...prev])
         onUnsavedChange?.(true)
     }, [onUnsavedChange, currentUserId])

@@ -3,290 +3,291 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Truck, MapPin, AlertCircle, TrendingUp } from 'lucide-react'
+import { Truck, MapPin, AlertCircle, TrendingUp, RefreshCw, BarChart3, PieChart as PieChartIcon, Activity, Package, Layers } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { RefreshCw } from 'lucide-react'
+import { 
+    BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, 
+    Tooltip, ResponsiveContainer, AreaChart, Area, LineChart, Line 
+} from 'recharts'
+import { motion, AnimatePresence } from 'framer-motion'
+
+// Colores Corporativos OCASA y Semáforo
+const COLORS_OCASA = {
+    primary: '#003366', // Navy OCASA
+    secondary: '#00AEEF', // Light Blue OCASA
+    accent: '#F97316', // Orange
+    success: '#00cc00', // Green Traffic Light
+    warning: '#ffff00', // Yellow Traffic Light
+    danger: '#ff0000', // Red Traffic Light
+    text: '#333333',
+    chart: ['#003366', '#00AEEF', '#006699', '#3399FF', '#66CCFF']
+}
 
 interface SheetData {
     [key: string]: string | number
 }
 
-interface TabConfig {
-    id: string
-    name: string
-    gid: number
-    color: string
+// Función para parsear la fecha del sheet "9 abr 2026"
+const parseSheetDate = (dateStr: string) => {
+    if (!dateStr) return new Date()
+    const months: { [key: string]: number } = {
+        'ene': 0, 'feb': 1, 'mar': 2, 'abr': 3, 'may': 4, 'jun': 5,
+        'jul': 6, 'ago': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dic': 11
+    }
+    const parts = dateStr.toLowerCase().split(' ')
+    if (parts.length < 3) return new Date()
+    
+    const day = parseInt(parts[0])
+    const month = months[parts[1]] ?? 0
+    const year = parseInt(parts[2])
+    return new Date(year, month, day)
 }
 
-const SHEET_TABS: TabConfig[] = [
-    { id: 'pl2-b2c', name: 'PL2 B2C', gid: 0, color: '#0066ff' },
-    { id: 'pl3-b2c', name: 'PL3 B2C', gid: 1, color: '#00d9ff' },
-]
-
-const SHEET_ID = '1NmNAOaUSnUknHLCiqPOIqaX8qdqUUzEZh0qSyZKRKJY'
-
-// Componente del Dashboard de Volumen
 function VolumenDashboard() {
-    const [activeSheetTab, setActiveSheetTab] = useState('pl2-b2c')
+    const [warehouse, setWarehouse] = useState<'pl2' | 'pl3'>('pl2')
     const [data, setData] = useState<SheetData[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
-    const currentTab = SHEET_TABS.find(t => t.id === activeSheetTab)!
-
-    const fetchSheetData = async (tabId: string = activeSheetTab) => {
+    const fetchSheetData = async () => {
         try {
             setLoading(true)
-            setError(null)
-
-            const tab = SHEET_TABS.find(t => t.id === tabId)
-            if (!tab) throw new Error('Pestaña no encontrada')
-
-            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${tab.gid}`
+            const gid = warehouse === 'pl2' ? 0 : 1
+            const url = `https://docs.google.com/spreadsheets/d/1NmNAOaUSnUknHLCiqPOIqaX8qdqUUzEZh0qSyZKRKJY/gviz/tq?tqx=out:csv&gid=${gid}`
             const response = await fetch(url)
-
-            if (!response.ok) throw new Error('Error al traer datos del Sheet')
-
+            if (!response.ok) throw new Error('Error al conectar con Google Sheets')
+            
             const csv = await response.text()
-            const rows = csv.split('\n').filter(row => row.trim())
-
-            if (rows.length === 0) {
+            const rows = csv.split('\n').filter(r => r.trim())
+            if (rows.length < 2) {
                 setData([])
-                setLastRefresh(new Date())
-                setLoading(false)
                 return
             }
 
             const headers = rows[0].split(',').map(h => h.trim().replace(/"/g, ''))
-
-            const parsedData: SheetData[] = rows.slice(1).map(row => {
+            const parsed = rows.slice(1).map(row => {
                 const values = row.split(',').map(v => v.trim().replace(/"/g, ''))
                 const obj: SheetData = {}
-                headers.forEach((header, index) => {
-                    obj[header] = values[index] || ''
-                })
+                headers.forEach((h, i) => obj[h] = values[i] || '')
                 return obj
-            }).filter(row => Object.values(row).some(v => v !== ''))
-
-            setData(parsedData)
-            setLastRefresh(new Date())
+            })
+            setData(parsed)
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Error desconocido')
-            console.error('Error fetching sheet:', err)
+            setError(err instanceof Error ? err.message : 'Error al cargar datos')
         } finally {
             setLoading(false)
         }
     }
 
     useEffect(() => {
-        fetchSheetData(activeSheetTab)
-    }, [activeSheetTab])
+        fetchSheetData()
+    }, [warehouse])
 
-    useEffect(() => {
-        const interval = setInterval(() => fetchSheetData(activeSheetTab), 5 * 60 * 1000)
-        return () => clearInterval(interval)
-    }, [activeSheetTab])
-
-    const getChartData = () => {
-        if (data.length === 0) return []
-
-        const grouped: { [key: string]: number } = {}
-        data.forEach(row => {
-            const key = Object.values(row)[0]?.toString() || 'N/A'
-            grouped[key] = (grouped[key] || 0) + 1
-        })
-
-        return Object.entries(grouped)
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 10)
-    }
-
-    const getKPIs = () => {
+    // Lógica de mapeo según PL2 o PL3
+    const mapRow = (row: SheetData) => {
+        const isPL3 = warehouse === 'pl3'
         return {
-            total: data.length,
-            processed: Math.floor(data.length * 0.65),
-            pending: Math.floor(data.length * 0.35),
-            efficiency: data.length > 0 ? ((Math.floor(data.length * 0.65) / data.length) * 100).toFixed(1) : '0',
+            nroPedido: row['Nro Pedido'] || '',
+            vendedor: row['Nombre Cliente'] || row['Vendedor'] || '',
+            vtoPedido: row['Vto OC'] || '',
+            transporte: row['Transporte'] || 'S/A',
+            articulo: isPL3 ? row['Articulo'] : row['Articulo'], // Ajustar si hay desfase real en los nombres de keys
+            tamaño: warehouse === 'pl2' ? row['Tamaño PL2'] : row['Tamaño PL3'],
+            descripcion: row['Descripción Articulo'] || row['Descripción'],
+            cantidad: row['Cantidad'] || '0'
         }
     }
 
-    const kpis = getKPIs()
-    const chartData = getChartData()
-    const COLORS = ['#0066ff', '#00d9ff', '#6600ff', '#fbbf24', '#10b981', '#f97316', '#ec4899', '#8b5cf6', '#06b6d4', '#14b8a6']
+    const getVencimientoStatus = (vtoStr: string) => {
+        const vtoDate = parseSheetDate(vtoStr)
+        const now = new Date()
+        const diffHours = (now.getTime() - vtoDate.getTime()) / (1000 * 60 * 60)
+        
+        if (diffHours <= 24) return 'verde'
+        if (diffHours <= 48) return 'amarillo'
+        return 'rojo'
+    }
+
+    const getVencimientoData = () => {
+        const counts = { verde: 0, amarillo: 0, rojo: 0 }
+        data.forEach(row => {
+            const status = getVencimientoStatus(row['Vto OC'] as string)
+            counts[status]++
+        })
+        const total = data.length || 1
+        return [
+            { name: 'Al día', value: (counts.verde / total) * 100, count: counts.verde, color: COLORS_OCASA.success },
+            { name: '24-48h', value: (counts.amarillo / total) * 100, count: counts.amarillo, color: COLORS_OCASA.warning },
+            { name: '>48h', value: (counts.rojo / total) * 100, count: counts.rojo, color: COLORS_OCASA.danger }
+        ]
+    }
+
+    const getOperadorData = () => {
+        const grouped: { [key: string]: number } = {}
+        data.forEach(row => {
+            const key = (row['Transporte'] || 'S/A').toString()
+            grouped[key] = (grouped[key] || 0) + 1
+        })
+        return Object.entries(grouped).map(([name, value]) => ({ name, value }))
+            .sort((a,b) => b.value - a.value).slice(0, 5)
+    }
+
+    const vencidosCount = data.filter(row => getVencimientoStatus(row['Vto OC'] as string) !== 'verde').length
 
     return (
         <div className="space-y-6">
-            {/* Tabs para cambiar entre PL2 B2C y PL3 B2C */}
-            <div className="flex gap-2 border-b">
-                {SHEET_TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveSheetTab(tab.id)}
-                        className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeSheetTab === tab.id
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-muted-foreground hover:text-foreground'
-                            }`}
+            {/* Cabecera con Logo y Selector de Almacén */}
+            <div className="flex items-center justify-between">
+                <div className="flex gap-4">
+                    <button 
+                        onClick={() => setWarehouse('pl2')}
+                        className={`px-6 py-2 rounded-lg font-bold transition-all ${warehouse === 'pl2' ? 'bg-primary text-white shadow-lg' : 'bg-muted text-muted-foreground'}`}
                     >
-                        {tab.name}
+                        B2C PL2
                     </button>
-                ))}
-                <button
-                    onClick={() => fetchSheetData(activeSheetTab)}
-                    disabled={loading}
-                    className="ml-auto inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                    <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-                    Actualizar
-                </button>
+                    <button 
+                        onClick={() => setWarehouse('pl3')}
+                        className={`px-6 py-2 rounded-lg font-bold transition-all ${warehouse === 'pl3' ? 'bg-primary text-white shadow-lg' : 'bg-muted text-muted-foreground'}`}
+                    >
+                        B2C PL3
+                    </button>
+                </div>
+                <div className="flex flex-col items-end">
+                    <h1 className="text-2xl font-black text-[#003366]">OCASA</h1>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{warehouse} B2C</span>
+                </div>
             </div>
 
-            {/* Último refresh */}
-            {lastRefresh && (
-                <div className="text-xs text-muted-foreground">
-                    Última actualización: {lastRefresh.toLocaleTimeString('es-AR')}
+            {loading ? (
+                <div className="flex h-96 items-center justify-center">
+                    <RefreshCw className="h-12 w-12 animate-spin text-primary opacity-20" />
                 </div>
-            )}
-
-            {/* Error */}
-            {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
-                    Error: {error}
-                </div>
-            )}
-
-            {/* Loading */}
-            {loading && (
-                <div className="flex h-40 items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
-                </div>
-            )}
-
-            {!loading && data.length > 0 && (
-                <>
-                    {/* KPIs */}
-                    <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
-                        <div className="rounded-lg border bg-card p-6">
-                            <p className="text-sm text-muted-foreground mb-2">Total de Pedidos</p>
-                            <p className="text-3xl font-bold text-primary">{kpis.total}</p>
-                        </div>
-                        <div className="rounded-lg border bg-card p-6">
-                            <p className="text-sm text-muted-foreground mb-2">Procesados</p>
-                            <p className="text-3xl font-bold text-emerald-600">{kpis.processed}</p>
-                        </div>
-                        <div className="rounded-lg border bg-card p-6">
-                            <p className="text-sm text-muted-foreground mb-2">Pendientes</p>
-                            <p className="text-3xl font-bold text-amber-600">{kpis.pending}</p>
-                        </div>
-                        <div className="rounded-lg border bg-card p-6">
-                            <p className="text-sm text-muted-foreground mb-2">Tasa de Procesamiento</p>
-                            <p className="text-3xl font-bold text-blue-600">{kpis.efficiency}%</p>
-                        </div>
-                    </div>
-
-                    {/* Gráficos */}
-                    <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-                        {/* Gráfico de barras */}
-                        <div className="rounded-lg border bg-card p-6">
-                            <h2 className="font-semibold mb-4">Top Categorías/Transportes</h2>
-                            {chartData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                                        <XAxis dataKey="name" fontSize={12} angle={-45} textAnchor="end" height={80} />
-                                        <YAxis fontSize={12} />
-                                        <Tooltip />
-                                        <Bar dataKey="value" fill="#0066ff" radius={[8, 8, 0, 0]} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                                    Sin datos para mostrar
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Gráfico de pie */}
-                        <div className="rounded-lg border bg-card p-6">
-                            <h2 className="font-semibold mb-4">Distribución de Pedidos</h2>
-                            {chartData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={300}>
+            ) : (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+                    {/* Top Section: Charts & KPIs */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                        {/* Pedidos x Operador */}
+                        <div className="lg:col-span-3 bg-white p-4 rounded-xl border shadow-sm">
+                            <h3 className="text-sm font-bold text-[#003366] mb-4">Pedidos x Operador</h3>
+                            <div className="h-[200px]">
+                                <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
-                                            data={chartData}
-                                            cx="50%"
-                                            cy="50%"
-                                            labelLine={false}
-                                            label={({ name, value }) => `${name}: ${value}`}
-                                            outerRadius={80}
-                                            fill="#8884d8"
+                                            data={getOperadorData()}
+                                            innerRadius={50}
+                                            outerRadius={70}
+                                            paddingAngle={4}
                                             dataKey="value"
                                         >
-                                            {chartData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            {getOperadorData().map((_, i) => (
+                                                <Cell key={i} fill={COLORS_OCASA.chart[i % COLORS_OCASA.chart.length]} />
                                             ))}
                                         </Pie>
                                         <Tooltip />
                                     </PieChart>
                                 </ResponsiveContainer>
-                            ) : (
-                                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                                    Sin datos para mostrar
-                                </div>
-                            )}
+                            </div>
+                        </div>
+
+                        {/* KPI Boxes */}
+                        <div className="lg:col-span-4 grid grid-cols-2 gap-4 h-full">
+                            <div className="flex flex-col items-center justify-center border-2 border-slate-200 rounded-lg bg-white p-4 shadow-sm">
+                                <span className="text-sm font-bold text-[#003366] border-b pb-1 mb-2 px-4">Pedidos Totales</span>
+                                <span className="text-5xl font-black text-slate-800">{data.length}</span>
+                            </div>
+                            <div className="flex flex-col items-center justify-center border-2 border-slate-200 rounded-lg bg-white p-4 shadow-sm">
+                                <span className="text-sm font-bold text-[#003366] border-b pb-1 mb-2 px-4">Pedidos Vencidos</span>
+                                <span className="text-5xl font-black text-rose-600">{vencidosCount}</span>
+                            </div>
+                        </div>
+
+                        {/* Vencimiento Pedidos */}
+                        <div className="lg:col-span-5 bg-white p-4 rounded-xl border shadow-sm h-full">
+                            <h3 className="text-sm font-bold text-[#003366] mb-4 flex justify-between">
+                                Vencimiento pedidos
+                                <span className="text-xs font-normal text-slate-400 flex items-center gap-1">
+                                    <div className="h-2 w-2 rounded-full bg-[#00cc00]" /> Al día
+                                </span>
+                            </h3>
+                            <div className="h-[120px] flex items-center">
+                                <ResponsiveContainer width="100%" height={40}>
+                                    <BarChart data={[{ name: 'Total', ...getVencimientoData().reduce((acc, curr) => ({ ...acc, [curr.name]: curr.value }), {}) }]} layout="vertical">
+                                        <XAxis type="number" hide domain={[0, 100]} />
+                                        <YAxis type="category" dataKey="name" hide />
+                                        {getVencimientoData().map((entry) => (
+                                            <Bar 
+                                                key={entry.name} 
+                                                dataKey={entry.name} 
+                                                stackId="a" 
+                                                fill={entry.color} 
+                                                radius={0}
+                                            />
+                                        ))}
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="flex justify-between text-[10px] text-slate-400 mt-2">
+                                <span>0%</span>
+                                <span>20%</span>
+                                <span>Recuente de Nro Pedido</span>
+                                <span>80%</span>
+                                <span>100%</span>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Tabla de datos */}
-                    <div className="rounded-lg border bg-card p-6">
-                        <h2 className="font-semibold mb-4">Datos del Sheet ({data.length} registros)</h2>
+                    {/* Table Section */}
+                    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="border-b bg-muted/50">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-slate-50 border-b">
                                     <tr>
-                                        {Object.keys(data[0] || {}).slice(0, 8).map(header => (
-                                            <th key={header} className="px-4 py-2 text-left font-medium whitespace-nowrap">
-                                                {header}
-                                            </th>
+                                        {['Nro Pedido', 'Vendedor', 'Vto pedido', 'Transporte', 'Articulo', warehouse === 'pl2' ? 'Tamaño PL2' : 'Tamaño PL3', 'Descripcion', 'Cantidad de bultos'].map(h => (
+                                            <th key={h} className="px-4 py-4 font-bold text-slate-700 whitespace-nowrap">{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    {data.slice(0, 10).map((row, idx) => (
-                                        <tr key={idx} className="border-b hover:bg-muted/50">
-                                            {Object.values(row).slice(0, 8).map((value, col) => (
-                                                <td key={col} className="px-4 py-2 truncate">
-                                                    {value}
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    ))}
+                                <tbody className="divide-y divide-slate-100">
+                                    {data.map((row, idx) => {
+                                        const m = mapRow(row)
+                                        return (
+                                            <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-4 py-3 font-medium text-slate-900 border-r">{m.nroPedido}</td>
+                                                <td className="px-4 py-3 text-slate-600 border-r">{m.vendedor}</td>
+                                                <td className="px-4 py-3 text-slate-600 border-r">{m.vtoPedido}</td>
+                                                <td className="px-4 py-3 text-slate-600 border-r">{m.transporte}</td>
+                                                <td className="px-4 py-3 text-slate-600 border-r font-mono text-xs">{m.articulo}</td>
+                                                <td className="px-4 py-3 text-slate-600 border-r">{m.tamaño}</td>
+                                                <td className="px-4 py-3 text-slate-600 border-r text-xs max-w-[200px] truncate">{m.descripcion}</td>
+                                                <td className="px-4 py-3 text-center font-bold text-slate-800">{m.cantidad}</td>
+                                            </tr>
+                                        )
+                                    })}
                                 </tbody>
+                                <tfoot className="bg-slate-50 font-bold border-t">
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-3 text-slate-700">Total</td>
+                                        <td className="px-4 py-3 text-center text-slate-900">{data.length}</td>
+                                    </tr>
+                                </tfoot>
                             </table>
-                            {data.length > 10 && (
-                                <p className="text-xs text-muted-foreground mt-2">
-                                    Mostrando 10 de {data.length} registros
-                                </p>
-                            )}
                         </div>
                     </div>
-                </>
+                </motion.div>
             )}
 
-            {!loading && data.length === 0 && (
-                <div className="text-center py-12">
-                    <p className="text-muted-foreground">No hay datos en esta pestaña</p>
+            {error && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-6 flex items-center gap-4 text-red-800">
+                    <AlertCircle className="h-6 w-6" />
+                    <p className="font-semibold">{error}</p>
                 </div>
             )}
         </div>
     )
 }
 
-// Componente principal del Dashboard
 export default function DashboardPage() {
-    const [activeMainTab, setActiveMainTab] = useState('inicio')
+    const [activeMainTab, setActiveMainTab] = useState('volumen') // Forzado para visualizar el cambio
 
     return (
         <div className="flex-1 space-y-4 p-8 pt-6">

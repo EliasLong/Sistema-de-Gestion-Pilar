@@ -6,6 +6,7 @@ import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, Lock, Search, ChevronDown, RefreshCw, FileSpreadsheet, HelpCircle } from 'lucide-react'
 import { MOCK_CARRIERS_B2C, getOperatorsForContext, MOCK_LABELERS } from '@/lib/mock-tracking'
 import { useProfile } from '@/hooks/useProfile'
+import { useAutoSaveField } from '@/hooks/useAutoSaveField'
 import { formatDate } from '@/lib/utils'
 
 // Tooltips centralizados
@@ -744,11 +745,44 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
 
                                     <td className="p-2 align-middle text-center">
                                         {editable ? (
-                                            <input
-                                                type="text" value={row.task_count}
-                                                onChange={(e) => updateRow(row._localId, 'task_count', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                                maxLength={4}
-                                                className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block"
+                                            <BultosAutoSaveInput
+                                                rowId={row._localId}
+                                                value={row.task_count}
+                                                onChange={(newValue) => updateRow(row._localId, 'task_count', newValue)}
+                                                onAutoSave={async (newValue) => {
+                                                    const { _localId, _saved, _isNew, ...payload } = row as any
+                                                    
+                                                    const savePayload = {
+                                                        ...payload,
+                                                        task_count: parseInt(newValue) || 0,
+                                                        pallet_count: parseInt(row.pallet_count) || 0,
+                                                        pallets_dispatched: parseInt(row.pallets_dispatched) || 0,
+                                                        status: payload.status || 'pending',
+                                                        trip_type: 'b2c',
+                                                        warehouse,
+                                                        id: row._localId
+                                                    }
+
+                                                    if (!savePayload.id || savePayload.id.startsWith('_local')) {
+                                                        throw new Error('No se puede guardar: falta ID del viaje')
+                                                    }
+
+                                                    try {
+                                                        await onSave(savePayload, row._isNew)
+                                                        
+                                                        setRows((prev) => {
+                                                            const next = prev.map((r) => {
+                                                                if (r._localId !== row._localId) return r
+                                                                return { ...r, _saved: true, _isNew: false }
+                                                            })
+                                                            onUnsavedChange?.(next.some((r) => !r._saved))
+                                                            return next
+                                                        })
+                                                    } catch (error) {
+                                                        console.error('Error auto-guardando bultos:', error)
+                                                        throw error
+                                                    }
+                                                }}
                                             />
                                         ) : (
                                             <span className="text-sm">{row.task_count}</span>
@@ -936,4 +970,61 @@ function OperatorMultiSelect({
             )}
         </div>
     )
+}
+
+function BultosAutoSaveInput({
+  rowId,
+  value,
+  onChange,
+  onAutoSave,
+}: {
+  rowId: string
+  value: string
+  onChange: (value: string) => void
+  onAutoSave: (value: string) => Promise<void>
+}) {
+  const { status, error } = useAutoSaveField({
+    value,
+    onSave: async (newValue) => {
+      await onAutoSave(newValue)
+    },
+    debounceMs: 1500,
+  })
+
+  return (
+    <div className="relative inline-flex items-center gap-2">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => {
+          const newVal = e.target.value.replace(/\D/g, '').slice(0, 4)
+          onChange(newVal)
+        }}
+        maxLength={4}
+        disabled={status === 'saving'}
+        className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 transition-all"
+        title={error ? `Error: ${error}` : 'Autoguardado automático'}
+      />
+      
+      <div className="flex items-center gap-1 min-w-[24px]">
+        {status === 'saving' && (
+          <div 
+            className="h-3 w-3 rounded-full border-2 border-transparent border-t-blue-500 animate-spin"
+            title="Guardando..."
+          />
+        )}
+        {status === 'saved' && (
+          <span className="text-xs text-green-600 font-bold" title="Guardado">✓</span>
+        )}
+        {status === 'error' && (
+          <span 
+            className="text-xs text-red-600 font-bold cursor-help" 
+            title={error || 'Error al guardar'}
+          >
+            !
+          </span>
+        )}
+      </div>
+    </div>
+  )
 }

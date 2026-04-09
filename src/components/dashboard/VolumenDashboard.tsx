@@ -70,7 +70,15 @@ export function VolumenDashboard() {
                 headers.forEach((h, i) => obj[h] = values[i] || '')
                 return obj
             })
-            setData(parsed)
+
+            // Filtro permanente solicitado: Excluir 'FLOTA PROPIA CON COORDINACION'
+            const filtered = parsed.filter(row => {
+                const transporte = String(row['Transporte'] || '').trim().toUpperCase()
+                return transporte !== 'FLOTA PROPIA CON COORDINACION'
+            })
+
+            setData(filtered)
+
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Error al cargar datos')
         } finally {

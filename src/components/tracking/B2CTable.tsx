@@ -350,7 +350,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 if (!payload.pallets_dispatched) payload.pallets_dispatched = 0; else payload.pallets_dispatched = Number(payload.pallets_dispatched);
                 if (!payload.status) payload.status = 'pending';
 
-                await onSave({ ...payload, trip_type: 'b2c', warehouse }, row._isNew)
+                await onSave({ ...payload, trip_type: 'b2c', warehouse, ...(row._isNew ? {} : { id: localId }) }, row._isNew)
 
                 setRows((prev) => {
                     const next = prev.map((r) => {
@@ -381,7 +381,7 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 if (!payload.pallets_dispatched) payload.pallets_dispatched = 0; else payload.pallets_dispatched = Number(payload.pallets_dispatched);
                 if (!payload.status) payload.status = 'pending';
 
-                return onSave({ ...payload, trip_type: 'b2c', warehouse }, row._isNew)
+                return onSave({ ...payload, trip_type: 'b2c', warehouse, ...(row._isNew ? {} : { id: row._localId }) }, row._isNew)
             }))
 
             setRows((prev) => {
@@ -750,6 +750,10 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                                 value={row.task_count}
                                                 onChange={(newValue) => updateRow(row._localId, 'task_count', newValue)}
                                                 onAutoSave={async (newValue) => {
+                                                    if (row._isNew) {
+                                                        throw new Error('Primero guarde la fila completa')
+                                                    }
+
                                                     const { _localId, _saved, _isNew, ...payload } = row as any
                                                     
                                                     const savePayload = {
@@ -763,12 +767,8 @@ export function B2CTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                                         id: row._localId
                                                     }
 
-                                                    if (!savePayload.id || savePayload.id.startsWith('_local')) {
-                                                        throw new Error('No se puede guardar: falta ID del viaje')
-                                                    }
-
                                                     try {
-                                                        await onSave(savePayload, row._isNew)
+                                                        await onSave(savePayload, false)
                                                         
                                                         setRows((prev) => {
                                                             const next = prev.map((r) => {

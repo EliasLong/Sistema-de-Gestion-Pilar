@@ -6,6 +6,7 @@ import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, RefreshCw, FileSpreadsheet, Lock, ArrowUp, Search, ChevronDown } from 'lucide-react'
 import { MOCK_CARRIERS_B2B, getOperatorsForContext } from '@/lib/mock-tracking'
 import { useProfile } from '@/hooks/useProfile'
+import { useAutoSaveField } from '@/hooks/useAutoSaveField'
 import { formatDate } from '@/lib/utils'
 
 // ============================================
@@ -321,7 +322,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 if (!payload.pallets) payload.pallets = 0; else payload.pallets = Number(payload.pallets);
                 if (!payload.status) payload.status = 'pending';
 
-                await onSave({ ...payload, trip_type: 'b2b', warehouse }, row._isNew)
+                await onSave({ ...payload, trip_type: 'b2b', warehouse, ...(row._isNew ? {} : { id: localId }) }, row._isNew)
                 
                 setRows((prev) => {
                     const next = prev.map((r) => {
@@ -351,7 +352,7 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 if (!payload.pallets) payload.pallets = 0; else payload.pallets = Number(payload.pallets);
                 if (!payload.status) payload.status = 'pending';
 
-                return onSave({ ...payload, trip_type: 'b2b', warehouse }, row._isNew)
+                return onSave({ ...payload, trip_type: 'b2b', warehouse, ...(row._isNew ? {} : { id: row._localId }) }, row._isNew)
             }))
             
             setRows((prev) => {
@@ -587,7 +588,50 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                     <td className="p-2">{editable ? <input type="text" value={row.trip_number} onChange={(e) => updateRow(row._localId, 'trip_number', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Nro" maxLength={6} className="w-[80px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.trip_number}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.client} onChange={(e) => updateRow(row._localId, 'client', e.target.value)} placeholder="Nombre" className="w-[120px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-medium px-2">{row.client}</span>}</td>
                                     <td className="p-2">{editable ? <input type="text" value={row.client_shift} onChange={(e) => updateRow(row._localId, 'client_shift', e.target.value)} placeholder="Turno" className="w-[100px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm px-2">{row.client_shift}</span>}</td>
-                                    <td className="p-2 text-center">{editable ? <input type="text" value={row.task_count} onChange={(e) => updateRow(row._localId, 'task_count', e.target.value.replace(/\D/g, '').slice(0, 4))} maxLength={4} className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block" /> : <span className="text-sm">{row.task_count}</span>}</td>
+                                    <td className="p-2 text-center">
+                                        {editable ? (
+                                            <BultosAutoSaveInputB2B
+                                                rowId={row._localId}
+                                                value={row.task_count}
+                                                onChange={(newValue) => updateRow(row._localId, 'task_count', newValue)}
+                                                onAutoSave={async (newValue) => {
+                                                    if (row._isNew) {
+                                                        throw new Error('Primero guarde la fila completa')
+                                                    }
+
+                                                    const { _localId, _saved, _isNew, ...payload } = row as any
+                                                    
+                                                    const savePayload = {
+                                                        ...payload,
+                                                        task_count: parseInt(newValue) || 0,
+                                                        pallets: parseInt(row.pallets) || 0,
+                                                        status: payload.status || 'pending',
+                                                        trip_type: 'b2b',
+                                                        warehouse,
+                                                        id: row._localId
+                                                    }
+
+                                                    try {
+                                                        await onSave(savePayload, false)
+                                                        
+                                                        setRows((prev) => {
+                                                            const next = prev.map((r) => {
+                                                                if (r._localId !== row._localId) return r
+                                                                return { ...r, _saved: true, _isNew: false }
+                                                            })
+                                                            onUnsavedChange?.(next.some((r) => !r._saved) || importedRows.length > 0)
+                                                            return next
+                                                        })
+                                                    } catch (error) {
+                                                        console.error('Error auto-guardando bultos:', error)
+                                                        throw error
+                                                    }
+                                                }}
+                                            />
+                                        ) : (
+                                            <span className="text-sm">{row.task_count}</span>
+                                        )}
+                                    </td>
                                     <td className="p-2">{editable ? <input type="text" value={row.port} onChange={(e) => updateRow(row._localId, 'port', e.target.value)} placeholder="Puerto" className="w-[70px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring" /> : <span className="text-sm font-mono px-2">{row.port}</span>}</td>
                                     <td className="p-2 text-center">{editable ? <input type="text" value={row.pallets} onChange={(e) => updateRow(row._localId, 'pallets', e.target.value.replace(/\D/g, '').slice(0, 2))} maxLength={2} className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring mx-auto block" /> : <span className="text-sm font-semibold">{row.pallets}</span>}</td>
                                     <td className="p-2">{editable ? <OperatorMultiSelect selected={row.operators} warehouse={warehouse} onToggle={(op) => toggleOperator(row._localId, op, false)} /> : <div className="flex flex-wrap gap-1">{row.operators.map((op) => <span key={op} className="rounded-md bg-secondary px-1.5 py-0.5 text-[10px] font-medium">{op.split(' ')[0]}</span>)}</div>}</td>
@@ -717,4 +761,61 @@ function OperatorMultiSelect({
             )}
         </div>
     )
+}
+
+function BultosAutoSaveInputB2B({
+  rowId,
+  value,
+  onChange,
+  onAutoSave,
+}: {
+  rowId: string
+  value: string
+  onChange: (value: string) => void
+  onAutoSave: (value: string) => Promise<void>
+}) {
+  const { status, error } = useAutoSaveField({
+    value,
+    onSave: async (newValue) => {
+      await onAutoSave(newValue)
+    },
+    debounceMs: 1500,
+  })
+
+  return (
+    <div className="relative inline-flex items-center gap-2">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => {
+          const newVal = e.target.value.replace(/\D/g, '').slice(0, 4)
+          onChange(newVal)
+        }}
+        maxLength={4}
+        disabled={status === 'saving'}
+        className="w-[60px] rounded-md border border-input bg-transparent px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 transition-all"
+        title={error ? `Error: ${error}` : 'Autoguardado automático'}
+      />
+      
+      <div className="flex items-center gap-1 min-w-[24px]">
+        {status === 'saving' && (
+          <div 
+            className="h-3 w-3 rounded-full border-2 border-transparent border-t-blue-500 animate-spin"
+            title="Guardando..."
+          />
+        )}
+        {status === 'saved' && (
+          <span className="text-xs text-green-600 font-bold" title="Guardado">✓</span>
+        )}
+        {status === 'error' && (
+          <span 
+            className="text-xs text-red-600 font-bold cursor-help" 
+            title={error || 'Error al guardar'}
+          >
+            !
+          </span>
+        )}
+      </div>
+    </div>
+  )
 }

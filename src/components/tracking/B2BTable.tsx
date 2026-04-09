@@ -322,12 +322,12 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                 if (!payload.pallets) payload.pallets = 0; else payload.pallets = Number(payload.pallets);
                 if (!payload.status) payload.status = 'pending';
 
-                await onSave({ ...payload, trip_type: 'b2b', warehouse, ...(row._isNew ? {} : { id: localId }) }, row._isNew)
+                const savedTrip = await onSave({ ...payload, trip_type: 'b2b', warehouse, ...(row._isNew ? {} : { id: localId }) }, row._isNew)
                 
                 setRows((prev) => {
                     const next = prev.map((r) => {
                         if (r._localId !== localId) return r
-                        return { ...r, _saved: true, _isNew: false }
+                        return { ...r, _localId: savedTrip.id, _saved: true, _isNew: false }
                     })
                     onUnsavedChange?.(next.some((r) => !r._saved) || importedRows.length > 0)
                     return next
@@ -356,9 +356,13 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
             }))
             
             setRows((prev) => {
-                const next = prev.map((row) => {
-                    if (row._saved) return row
-                    return { ...row, _saved: true, _isNew: false }
+                const next = [...prev]
+                rowsToSave.forEach((originalRow, index) => {
+                    const savedTrip = savedResults[index]
+                    const rowIdx = next.findIndex(r => r._localId === originalRow._localId)
+                    if (rowIdx !== -1) {
+                        next[rowIdx] = { ...next[rowIdx], _localId: savedTrip.id, _saved: true, _isNew: false }
+                    }
                 })
                 onUnsavedChange?.(next.some((r) => !r._saved) || importedRows.length > 0)
                 return next
@@ -612,12 +616,12 @@ export function B2BTable({ trips, warehouse, onUnsavedChange, onSave, onSaveBatc
                                                     }
 
                                                     try {
-                                                        await onSave(savePayload, false)
+                                                        const savedTrip = await onSave(savePayload, false)
                                                         
                                                         setRows((prev) => {
                                                             const next = prev.map((r) => {
                                                                 if (r._localId !== row._localId) return r
-                                                                return { ...r, _saved: true, _isNew: false }
+                                                                return { ...r, _localId: savedTrip.id, _saved: true, _isNew: false }
                                                             })
                                                             onUnsavedChange?.(next.some((r) => !r._saved) || importedRows.length > 0)
                                                             return next

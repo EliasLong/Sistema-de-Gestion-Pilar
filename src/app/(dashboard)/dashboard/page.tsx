@@ -29,24 +29,26 @@ function DashboardContent() {
         <div className="flex-1 space-y-4 p-8 pt-6">
             {/* Pestañas principales */}
             <div className="flex gap-2 border-b mb-6">
-                <button
-                    onClick={() => setActiveMainTab('inicio')}
-                    className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeMainTab === 'inicio'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    Inicio
-                </button>
-                <button
-                    onClick={() => setActiveMainTab('volumen')}
-                    className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeMainTab === 'volumen'
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    Volumen
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setActiveMainTab('inicio')}
+                        className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeMainTab === 'inicio'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                            }`}
+                    >
+                        Inicio
+                    </button>
+                    <button
+                        onClick={() => setActiveMainTab('volumen')}
+                        className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeMainTab === 'volumen'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                            }`}
+                    >
+                        Volumen
+                    </button>
+                </div>
             </div>
 
             <AnimatePresence mode="wait">

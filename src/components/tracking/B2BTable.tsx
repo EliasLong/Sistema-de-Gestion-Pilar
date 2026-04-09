@@ -1075,5 +1075,3 @@ function AutoSaveSelect({
   )
 }
 
-    )
-}

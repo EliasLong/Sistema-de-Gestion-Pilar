@@ -28,6 +28,10 @@ export const navigation: NavItem[] = [
     href: '/dashboard',
     icon: LayoutDashboard,
     roles: ['operative', 'supervisor', 'manager', 'admin'],
+    subItems: [
+      { title: 'Inicio', href: '/dashboard' },
+      { title: 'Volumen', href: '/dashboard?tab=volumen' },
+    ],
   },
   {
     title: 'Tracking',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { B2BTrip, TripStatus, SheetImportRow } from '@/types/tracking'
 import { TRIP_STATUS_LABELS, canEditRow } from '@/types/tracking'
 import { Check, X, Plus, Save, Trash2, RefreshCw, FileSpreadsheet, Lock, ArrowUp, Search, ChevronDown } from 'lucide-react'
@@ -1075,95 +1075,5 @@ function AutoSaveSelect({
   )
 }
 
-function OperatorMultiSelect({
-    selected,
-    warehouse,
-    onToggle,
-}: {
-    selected: string[]
-    warehouse: Warehouse
-    onToggle: (op: string) => void
-}) {
-    const { status, error } = useAutoSaveField({
-        value: selected,
-        onSave: async () => {},
-        debounceMs: 500
-    })
-
-    const [isOpen, setIsOpen] = useState(false)
-    const [searchTerm, setSearchTerm] = useState('')
-    const dropdownRef = useRef<HTMLDivElement>(null)
-
-    const operators = getOperatorsForContext(warehouse)
-    const filteredOperators = operators.filter(op =>
-        op.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [])
-
-    return (
-        <div className="relative w-full" ref={dropdownRef}>
-            <div className="flex items-center gap-1.5">
-                <button
-                    type="button"
-                    onClick={() => setIsOpen(!isOpen)}
-                    className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <span className="truncate">
-                        {selected.length === 0 ? 'Seleccionar...' : `${selected.length} seleccionados`}
-                    </span>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                </button>
-                <SaveIndicator status={status} error={error} />
-            </div>
-
-            {isOpen && (
-                <>
-                    <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsOpen(false)} />
-                    <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border bg-popover p-2 text-popover-foreground shadow-md animate-in fade-in zoom-in-95">
-                        <div className="relative mb-2">
-                            <Search className="absolute left-2 top-2.5 h-3 w-3 text-muted-foreground" />
-                            <input
-                                autoFocus
-                                type="text"
-                                placeholder="Buscar por nombre..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full rounded-md border border-input bg-transparent py-2 pl-7 pr-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-                            />
-                        </div>
-
-                        <div className="max-h-64 overflow-y-auto space-y-0.5 pr-1 custom-scrollbar">
-                            {filteredOperators.length > 0 ? (
-                                filteredOperators.map((op) => (
-                                    <button
-                                        key={op}
-                                        type="button"
-                                        onClick={() => onToggle(op)}
-                                        className={`w-full flex items-center justify-between rounded-md px-3 py-2 text-sm transition-all hover:bg-accent ${selected.includes(op) ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground'
-                                            }`}
-                                    >
-                                        <span className="truncate">{op}</span>
-                                        {selected.includes(op) && <Check className="h-4 w-4 shrink-0" />}
-                                    </button>
-                                ))
-                            ) : (
-                                <div className="py-4 text-center text-xs text-muted-foreground italic">
-                                    No se encontraron operarios
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </>
-            )}
-        </div>
     )
 }

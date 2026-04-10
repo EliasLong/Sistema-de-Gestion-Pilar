@@ -77,10 +77,10 @@ export function VolumenDashboard() {
                 return obj
             })
 
-            // Filtro permanente solicitado: Excluir 'FLOTA PROPIA CON COORDINACION'
+            // Filtro permanente solicitado: Excluir 'FLOTA PROPIA CON COORDINACION' y 'S/A'
             const filtered = parsed.filter(row => {
-                const transporte = String(row['Transporte'] || '').trim().toUpperCase()
-                return transporte !== 'FLOTA PROPIA CON COORDINACION'
+                const transporte = String(row['Transporte'] || 'S/A').trim().toUpperCase()
+                return transporte !== 'FLOTA PROPIA CON COORDINACION' && transporte !== 'S/A'
             })
 
             setData(filtered)
@@ -104,12 +104,16 @@ export function VolumenDashboard() {
         return () => clearInterval(interval)
     }, [warehouse])
 
+    const getVtoValue = (row: SheetData) => {
+        return (row['Vto Pedido'] || row['Vto pedido'] || row['Vto OC'] || '') as string;
+    }
+
     const mapRow = (row: SheetData) => {
         const isPL3 = warehouse === 'pl3'
         return {
             nroPedido: row['Nro Pedido'] || '',
             vendedor: row['Nombre Cliente'] || row['Vendedor'] || '',
-            vtoPedido: row['Vto OC'] || '',
+            vtoPedido: getVtoValue(row),
             transporte: row['Transporte'] || 'S/A',
             articulo: isPL3 ? row['Articulo'] : row['Articulo'],
             tamaño: warehouse === 'pl2' ? row['Tamaño PL2'] : row['Tamaño PL3'],
@@ -119,19 +123,37 @@ export function VolumenDashboard() {
     }
 
     const getVencimientoStatus = (vtoStr: string) => {
-        const vtoDate = parseSheetDate(vtoStr)
-        const now = new Date()
-        const diffHours = (now.getTime() - vtoDate.getTime()) / (1000 * 60 * 60)
+        if (!vtoStr) return 'verde';
         
-        if (diffHours <= 24) return 'verde'
-        if (diffHours <= 48) return 'amarillo'
-        return 'rojo'
+        let vtoDate = parseSheetDate(vtoStr)
+        // Intentar parsear "DD/MM/YYYY" si parseSheetDate devuelve la fecha de hoy por fallar, u otro formato
+        if (vtoStr.includes('/') || vtoStr.includes('-')) {
+            const parts = vtoStr.split(/[-/]/);
+            if (parts.length === 3) {
+                const p0 = parseInt(parts[0]);
+                const p1 = parseInt(parts[1]) - 1; // Mes 0-index
+                const p2 = parseInt(parts[2]);
+                if (p2 > 1000) vtoDate = new Date(p2, p1, p0); // DD/MM/YYYY
+                else if (p0 > 1000) vtoDate = new Date(p0, p1, p2); // YYYY/MM/DD
+                else vtoDate = new Date(vtoStr);
+            }
+        }
+
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        vtoDate.setHours(0, 0, 0, 0)
+        
+        const diffDays = Math.floor((today.getTime() - vtoDate.getTime()) / (1000 * 60 * 60 * 24))
+        
+        if (diffDays <= 0) return 'verde' // Al día o no vencido
+        if (diffDays <= 2) return 'amarillo' // 24-48h de vencimiento
+        return 'rojo' // >48h vencido
     }
 
     const getVencimientoData = () => {
         const counts = { verde: 0, amarillo: 0, rojo: 0 }
         data.forEach(row => {
-            const status = getVencimientoStatus(row['Vto OC'] as string)
+            const status = getVencimientoStatus(getVtoValue(row))
             counts[status]++
         })
         const total = data.length || 1
@@ -152,7 +174,7 @@ export function VolumenDashboard() {
             .sort((a,b) => b.value - a.value).slice(0, 5)
     }
 
-    const vencidosCount = data.filter(row => getVencimientoStatus(row['Vto OC'] as string) !== 'verde').length
+    const vencidosCount = data.filter(row => getVencimientoStatus(getVtoValue(row)) !== 'verde').length
 
     return (
         <div className="space-y-6">

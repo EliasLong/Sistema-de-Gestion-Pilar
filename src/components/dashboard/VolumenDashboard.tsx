@@ -46,7 +46,9 @@ export function VolumenDashboard() {
     const [warehouse, setWarehouse] = useState<'pl2' | 'pl3'>('pl2')
     const [data, setData] = useState<SheetData[]>([])
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
     const [lastUpdated, setLastUpdated] = useState<string | null>(null)
+
     const [isRefreshing, setIsRefreshing] = useState(false)
 
     const fetchSheetData = async (silent = false) => {

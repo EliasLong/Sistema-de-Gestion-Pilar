@@ -46,14 +46,18 @@ export function VolumenDashboard() {
     const [warehouse, setWarehouse] = useState<'pl2' | 'pl3'>('pl2')
     const [data, setData] = useState<SheetData[]>([])
     const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    const [lastUpdated, setLastUpdated] = useState<string | null>(null)
+    const [isRefreshing, setIsRefreshing] = useState(false)
 
-    const fetchSheetData = async () => {
+    const fetchSheetData = async (silent = false) => {
         try {
-            setLoading(true)
-            const gid = warehouse === 'pl2' ? 0 : 1
-            const url = `https://docs.google.com/spreadsheets/d/1NmNAOaUSnUknHLCiqPOIqaX8qdqUUzEZh0qSyZKRKJY/gviz/tq?tqx=out:csv&gid=${gid}`
+            if (!silent) setLoading(true)
+            else setIsRefreshing(true)
+
+            const gid = warehouse === 'pl2' ? 0 : 1150456694
+            const url = `https://docs.google.com/spreadsheets/d/1NmNAOaUSnUknHLCiqPOIqaX8qdqUUzEZh0qSyZKRKJY/gviz/tq?tqx=out:csv&gid=${gid}&_t=${Date.now()}`
             const response = await fetch(url)
+
             if (!response.ok) throw new Error('Error al conectar con Google Sheets')
             
             const csv = await response.text()
@@ -78,16 +82,24 @@ export function VolumenDashboard() {
             })
 
             setData(filtered)
-
+            setLastUpdated(new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Error al cargar datos')
         } finally {
             setLoading(false)
+            setIsRefreshing(false)
         }
     }
 
     useEffect(() => {
         fetchSheetData()
+        
+        // Auto-refresco cada 5 minutos
+        const interval = setInterval(() => {
+            fetchSheetData(true)
+        }, 5 * 60 * 1000)
+
+        return () => clearInterval(interval)
     }, [warehouse])
 
     const mapRow = (row: SheetData) => {
@@ -158,8 +170,23 @@ export function VolumenDashboard() {
                     </button>
                 </div>
                 <div className="flex flex-col items-end">
-                    <h1 className="text-2xl font-black text-[#003366]">OCASA</h1>
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{warehouse} B2C</span>
+                    <div className="flex items-center gap-2 mb-1">
+                        <h1 className="text-2xl font-black text-[#003366]">OCASA</h1>
+                        <button 
+                            onClick={() => fetchSheetData(true)} 
+                            disabled={isRefreshing}
+                            className={`p-1.5 rounded-full hover:bg-slate-100 transition-colors ${isRefreshing ? 'animate-spin text-slate-400' : 'text-[#003366]'}`}
+                            title="Actualizar datos ahora"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                        </button>
+                    </div>
+                    <div className="flex flex-col items-end">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{warehouse} B2C</span>
+                        {lastUpdated && (
+                            <span className="text-[10px] text-slate-400 italic">Actualizado: {lastUpdated}</span>
+                        )}
+                    </div>
                 </div>
             </div>
 
